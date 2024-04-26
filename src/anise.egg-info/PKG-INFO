@@ -1,0 +1,13 @@
+Metadata-Version: 2.1
+Name: anise
+Version: 0.1.0
+Summary: functional neuroimaging analysis of fUSI data.
+Author-email: Tyson Aflalo <tyson@forestneurotech.org>
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: numpy
+Requires-Dist: matplotlib
+Requires-Dist: nilearn
