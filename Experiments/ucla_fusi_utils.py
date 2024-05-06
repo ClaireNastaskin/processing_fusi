@@ -33,7 +33,7 @@ class DirectoryManager:
         self.power_doppler_path = self.sequence_data_path / 'power_doppler'
         self.meta_data_path = self.power_doppler_path  # This seems to be a mistake in the original code, corrected here
         self.fUSI_data_path = self.sequence_data_path / 'fUSI'
-        
+        print(self.fUSI_data_path)
         # Ensure fUSI_data_path exists
         if not self.fUSI_data_path.exists():
             self.fUSI_data_path.mkdir(parents=True, exist_ok=True)
