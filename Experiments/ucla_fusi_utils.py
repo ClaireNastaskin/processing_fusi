@@ -11,7 +11,7 @@ import re
 import h5py
 from pathlib import Path
 from datetime import datetime, timedelta
-
+import json
 
 import nilearn as nl
 from nilearn.glm.first_level import make_first_level_design_matrix
@@ -27,6 +27,8 @@ class DirectoryManager:
         self.base_path = base_path
         self.sequence = sequence
         self.log_file_path = self.base_path / 'logs' / 'task_1.log'
+        self.task_event_file_path = self.base_path / 'streams' / 'daq_1_event_stream.h5'
+        self.probe_event_file_path = self.base_path / 'streams' / 'probe_1_event_stream.h5'
         self.sequence_data_path = self.base_path / 'acquisitions' / self.sequence
         self.raw_data_path = self.sequence_data_path / 'raw_frame_data'
         self.beamformed_path = self.sequence_data_path / 'beamformed'
@@ -48,6 +50,8 @@ class DirectoryManager:
     def print_paths(self):
         print("List of all directories in acquisitions path:")
         print(f'    log_file_path: {self.log_file_path}')
+        print(f'    task_event_file_path: {self.task_event_file_path}')
+        print(f'    probe_event_file_path: {self.probe_event_file_path}')
         print(f'    sequence_data_path: {self.sequence_data_path}')
         print(f'    raw_data_path: {self.raw_data_path}')
         print(f'    beamformed_path: {self.beamformed_path}')
@@ -75,7 +79,7 @@ def create_video_from_3d_data(data_3d, output_path='movie_test.mp4', fps=10):
     writer.close()
     return Video(output_path)
 
-def load_fUSi_info(directory):
+def load_fUSi_info(directory,num_tissue_components=50):
     """
     Scans the specified directory for h5 files, extracts timestamps from the filenames, and organizes this information into a DataFrame. 
     The DataFrame is sorted by timestamps and includes columns for relative experiment times and readable timestamps.
@@ -86,12 +90,13 @@ def load_fUSi_info(directory):
     Returns:
     DataFrame: A DataFrame containing the filenames, original timestamps, experiment relative times, and readable timestamps.
     """
-    filenames = [f for f in os.listdir(directory) if f.endswith('.h5')]
-    
+    filenames = [f for f in os.listdir(directory) if f.endswith('.h5') and f'num_tissue_components={num_tissue_components}' in f]
+    print(filenames)
     # Extract datetime from filenames and store data
     data = []
     for filename in filenames:
         timestamp = re.search(r'\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{6}', filename)
+        timestamp
         if timestamp:
             data.append({
                 'Filename': filename,
@@ -212,7 +217,8 @@ def get_fusi_frames(power_doppler_path, power_doppler_df, frame_indices=-1):
         # Load the h5 file
         with h5py.File(file_path, 'r') as file:
             # Assuming the dataset name in the h5 file is 'beamformed'
-            data = file['beamformed'][:]
+            # data = file['beamformed'][:]
+            data = file['power_doppler'][:]
             data_list.append(data)
     
     # Stack the data arrays along the last dimension
@@ -304,3 +310,170 @@ def extract_parameters(transform):
     tx, ty = transform_object.parameters[4:6]  # Assuming these indices contain translations
     angle = transform_object.parameters[2]  # Assuming this index contains the rotation angle
     return tx, ty, angle
+
+
+
+
+def extract_events_from_h5(h5_file_path):
+    """
+    Reads an HDF5 file, extracts timestamps and event descriptions from the dataset, and organizes this information into a DataFrame.
+
+    Args:
+    h5_file_path (str): path to file
+
+    Returns:
+    DataFrame: A DataFrame containing the timestamps and event descriptions.
+    """
+
+    # Open the HDF5 file
+    with h5py.File(h5_file_path, 'r') as file:
+        # Extract data from the 'data' dataset
+        dataset = file['data'][:]
+        
+        # Extract fields
+        events = dataset['event']
+        timestamps = dataset['timestamp']
+
+    # Convert data to DataFrame
+    data = []
+    for i in range(len(timestamps)):
+        data.append({
+            'Event': events[i].decode('utf-8'),
+            'Timestamp': timestamps[i]
+            
+        })
+
+    behavior_df = pd.DataFrame(data)
+
+    return behavior_df
+
+
+
+
+
+def calculate_stimulus_eventsV2(behavior_df):
+    """
+    Analyzes a DataFrame containing behavioral event data to compute the durations of stimulus events.
+    It extracts the times when the stimulus was turned on and off, calculates the duration for each stimulus event, and returns a DataFrame with the stimulus conditions, onset times, and durations.
+    
+    Args:
+    behavior_df (DataFrame): A DataFrame with columns for timestamps, event descriptions, and relative experiment times.
+    
+    Returns:
+    DataFrame: A DataFrame containing the trial type, onset times, and durations of each stimulus event.
+    """
+    
+    on_times = behavior_df[behavior_df['Event'] == 'stimulus_onset']['Timestamp'].reset_index(drop=True)
+    off_times = behavior_df[behavior_df['Event'] == 'stimulus_offset']['Timestamp'].reset_index(drop=True)
+
+    # Calculating the duration for which the stimulus was on
+    if len(on_times) == len(off_times):
+        stimulus_durations = off_times - on_times
+    else:
+        print("Mismatch in 'on' and 'off' events count.")
+        return None
+
+    # Extract conditions and onset times
+    stimulus_df = behavior_df[behavior_df['Event'] == 'stimulus_onset']
+    conditions = stimulus_df['Event'].tolist()
+    onsets = stimulus_df['Timestamp'].tolist()
+
+    events = pd.DataFrame(
+        {"trial_type": conditions, "onset": onsets, "duration": stimulus_durations}
+    )
+
+    return events
+
+
+
+def extract_probe_events_from_h5(h5_file_path):
+    """
+    Reads an HDF5 file, extracts timestamps and event descriptions from the dataset, and organizes this information into a DataFrame.
+
+    Args:
+    h5_file_path (str): path to file
+
+    Returns:
+    DataFrame: A DataFrame containing the timestamps and event descriptions.
+    """
+
+    # Open the HDF5 file
+    with h5py.File(h5_file_path, 'r') as file:
+        # Extract data from the 'data' dataset
+        dataset = file['data'][:]
+        
+        # Extract fields
+        events = dataset['event']
+        timestamps = dataset['timestamp']
+        payload = dataset['payload']
+    
+
+    # Convert data to DataFrame
+    data = []
+    for i in range(len(timestamps)):
+        
+
+        event=events[i].decode('utf-8')
+
+        if event=='frame_saved':
+            payload_data = json.loads(payload[i])
+
+
+            # Extract the filename from the output_path
+            file_name = os.path.basename(payload_data["output_path"])
+
+
+            data.append({
+                'Event': events[i].decode('utf-8'),
+                'raw_file_name': file_name,
+                'raw_output_path': payload_data["output_path"],
+                'acquisition_idx': payload_data["acquisition_idx"],
+                'time_stamp': timestamps[i]
+                
+            })
+
+    behavior_df = pd.DataFrame(data)
+    # Filter behavior_df for rows where the 'Event' column is 'frame_saved'
+
+    return behavior_df
+
+
+
+
+
+def calculate_stimulus_events_caltech_daq(behavior_df):
+    """
+    Analyzes a DataFrame containing behavioral event data to compute the durations of stimulus events.
+    It extracts the times when the stimulus was turned on and off, calculates the duration for each stimulus event, and returns a DataFrame with the stimulus conditions, onset times, and durations.
+    
+    Args:
+    behavior_df (DataFrame): A DataFrame with columns for timestamps, event descriptions, and relative experiment times.
+    
+    Returns:
+    DataFrame: A DataFrame containing the trial type, onset times, and durations of each stimulus event.
+    """
+    
+    on_times = behavior_df[behavior_df['Event'] == 'pwm_enabled']['Timestamp'].reset_index(drop=True)
+    off_times = behavior_df[behavior_df['Event'] == 'pwm_disabled']['Timestamp'].reset_index(drop=True)
+
+    # Calculating the duration for which the stimulus was on
+    if len(on_times) == len(off_times):
+        stimulus_durations = off_times - on_times
+    else:
+        print("Mismatch in 'on' and 'off' events count.")
+        stimulus_durations = off_times - on_times[0:-1]
+        # stimulus_durations = stimulus_durations.append(pd.Series([stimulus_durations.mean()]))
+        stimulus_durations = pd.concat([stimulus_durations, pd.Series([stimulus_durations.mean()])], ignore_index=True)
+
+        # return None
+
+    # Extract conditions and onset times
+    stimulus_df = behavior_df[behavior_df['Event'] == 'pwm_enabled']
+    conditions = stimulus_df['Event'].tolist()
+    onsets = stimulus_df['Timestamp'].tolist()
+
+    events = pd.DataFrame(
+        {"trial_type": conditions, "onset": onsets, "duration": stimulus_durations}
+    )
+
+    return events
