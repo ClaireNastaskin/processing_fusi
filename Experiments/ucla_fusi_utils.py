@@ -27,8 +27,8 @@ class DirectoryManager:
         self.base_path = base_path
         self.sequence = sequence
         self.log_file_path = self.base_path / 'logs' / 'task_1.log'
-        self.task_event_file_path = self.base_path / 'streams' / 'daq_1_event_stream.h5'
-        self.probe_event_file_path = self.base_path / 'streams' / 'probe_1_event_stream.h5'
+        self.task_event_file_path = self.base_path / 'streams' / 'daq_1-event_stream.h5'
+        self.probe_event_file_path = self.base_path / 'streams' / 'probe_1-event_stream.h5'
         self.sequence_data_path = self.base_path / 'acquisitions' / self.sequence
         self.raw_data_path = self.sequence_data_path / 'raw_frame_data'
         self.beamformed_path = self.sequence_data_path / 'beamformed'
