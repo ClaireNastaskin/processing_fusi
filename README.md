@@ -40,3 +40,8 @@ e.g.
 ```console
 pip install /Users/taflalo/code/Mangrove
 ```
+
+Finally, install the Anise code as a module 
+```console
+python setup.py install
+```

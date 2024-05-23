@@ -17,10 +17,10 @@ classifiers = [
 dependencies = [
     "numpy",
     "matplotlib",
-    "nilearn"
-    "antspyx"
-    "SimpleITK"
-    "imageio" 
+    "nilearn",
+    "antspyx",
+    "SimpleITK",
+    "imageio", 
     "imageio-ffmpeg"
 ]
 requires-python = ">=3.9"
