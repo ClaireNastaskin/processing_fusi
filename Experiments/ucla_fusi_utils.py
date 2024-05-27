@@ -90,7 +90,7 @@ def load_fUSi_info(directory,num_tissue_components=50):
     Returns:
     DataFrame: A DataFrame containing the filenames, original timestamps, experiment relative times, and readable timestamps.
     """
-    filenames = [f for f in os.listdir(directory) if f.endswith('.h5') and f'num_tissue_components={num_tissue_components}' in f]
+    filenames = [f for f in os.listdir(directory) if f.endswith('.h5') and f.startswith('ensemble') and f'num_tissue_components={num_tissue_components}' in f]
     print(filenames)
     # Extract datetime from filenames and store data
     data = []
