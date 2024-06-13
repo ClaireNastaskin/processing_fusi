@@ -196,11 +196,18 @@ def extract_task_events(task_event_stream):
     for i in range(len(timestamps)):
         event_decoded = events[i].decode('utf-8')
         if event_decoded == 'start_playing' or event_decoded == 'stop_playing':
-            stimulus_payload=json.loads(payload[i].decode('utf-8'))
+            stimulus_payload = json.loads(payload[i].decode('utf-8'))
             data.append({
-                'Event': events[i].decode('utf-8'),
+                'Event': event_decoded,
                 'Timestamp': timestamps[i],
                 'Stimulus': stimulus_payload["stimulus"][:-4]
+            })
+        elif event_decoded == 'stimulus_onset' or event_decoded == 'stimulus_offset':
+            stimulus_payload = json.loads(payload[i].decode('utf-8'))
+            data.append({
+                'Event': event_decoded,
+                'Timestamp': timestamps[i],
+                'Stimulus': stimulus_payload["task"]
             })
 
     behavior_df = pd.DataFrame(data)
@@ -221,10 +228,15 @@ def extract_nilearn_compatible_events(behavior_df):
     Returns:
     DataFrame: A DataFrame containing the trial type, onset times, and durations of each stimulus event.
     """
-    
-    on_times = behavior_df[behavior_df['Event'] == 'start_playing']['Timestamp'].reset_index(drop=True)
-    off_times = behavior_df[behavior_df['Event'] == 'stop_playing']['Timestamp'].reset_index(drop=True)
-
+    if 'start_playing' in behavior_df['Event'].values and 'stop_playing' in behavior_df['Event'].values:
+        on_times = behavior_df[behavior_df['Event'] == 'start_playing']['Timestamp'].reset_index(drop=True)
+        off_times = behavior_df[behavior_df['Event'] == 'stop_playing']['Timestamp'].reset_index(drop=True)
+        stimulus_df = behavior_df[behavior_df['Event'] == 'start_playing']
+        
+    elif 'stimulus_onset' in behavior_df['Event'].values and 'stimulus_offset' in behavior_df['Event'].values:
+        on_times = behavior_df[behavior_df['Event'] == 'stimulus_onset']['Timestamp'].reset_index(drop=True)
+        off_times = behavior_df[behavior_df['Event'] == 'stimulus_offset']['Timestamp'].reset_index(drop=True)
+        stimulus_df = behavior_df[behavior_df['Event'] == 'stimulus_onset']
     # Calculating the duration for which the stimulus was on
     if len(on_times) == len(off_times):
         stimulus_durations = off_times - on_times
@@ -232,8 +244,6 @@ def extract_nilearn_compatible_events(behavior_df):
         print("Mismatch in 'on' and 'off' events count.")
         return None
 
-    # Extract conditions and onset times
-    stimulus_df = behavior_df[behavior_df['Event'] == 'start_playing']
     # return stimulus_df
     conditions = stimulus_df['Stimulus'].tolist()
     onsets = stimulus_df['Timestamp'].tolist()
@@ -313,8 +323,7 @@ def process_power_doppler_files(power_doppler_path, num_tissue_components, probe
     import os
     import re
 
-    filenames = [f for f in os.listdir(power_doppler_path) if f.endswith('.h5')]
-
+    filenames = [f for f in os.listdir(power_doppler_path) if f.endswith('.h5') and f.startswith('ensemble')]
     if not filenames:
         raise ValueError("No power doppler files found in the specified directory.")
 

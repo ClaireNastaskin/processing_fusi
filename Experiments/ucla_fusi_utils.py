@@ -27,7 +27,7 @@ class DirectoryManager:
         self.base_path = base_path
         self.sequence = sequence
         self.log_file_path = self.base_path / 'logs' / 'task_1.log'
-        self.task_event_file_path = self.base_path / 'streams' / 'daq_1-event_stream.h5'
+        self.task_event_file_path = self.base_path / 'streams' / 'task_1-event_stream.h5'
         self.probe_event_file_path = self.base_path / 'streams' / 'probe_1-event_stream.h5'
         self.sequence_data_path = self.base_path / 'acquisitions' / self.sequence
         self.raw_data_path = self.sequence_data_path / 'raw_frame_data'
@@ -79,7 +79,7 @@ def create_video_from_3d_data(data_3d, output_path='movie_test.mp4', fps=10):
     writer.close()
     return Video(output_path)
 
-def load_fUSi_info(directory,num_tissue_components=50):
+def load_fUSi_info(directory,num_tissue_components):
     """
     Scans the specified directory for h5 files, extracts timestamps from the filenames, and organizes this information into a DataFrame. 
     The DataFrame is sorted by timestamps and includes columns for relative experiment times and readable timestamps.
@@ -117,7 +117,7 @@ def load_fUSi_info(directory,num_tissue_components=50):
     return power_doppler_df
 
 
-def process_task_log(log_file_path,fusi_info,timeoffset=0):
+def process_task_log(task_event_file_path,fusi_info,timeoffset=0):
     """
     Reads a log file, extracts timestamps and event descriptions from each line, and organizes this information into a DataFrame.
     The DataFrame is sorted by timestamps and includes columns for relative experiment times and readable timestamps.
@@ -129,7 +129,7 @@ def process_task_log(log_file_path,fusi_info,timeoffset=0):
     DataFrame: A DataFrame containing the timestamps, event descriptions, experiment relative times, and readable timestamps.
     """
     # Read the entire log file
-    with open(log_file_path, 'r') as file:
+    with open(task_event_file_path, 'r') as file:
         lines = file.readlines()
     
     #  parse lines
@@ -152,6 +152,66 @@ def process_task_log(log_file_path,fusi_info,timeoffset=0):
     #  format excluding the date and keeping the first digit of milliseconds
     behavior_df['Readable Timestamp'] = behavior_df['Timestamp'].dt.strftime('%H:%M:%S.%f').str[:-5]
     return behavior_df
+
+
+def process_task_stream(task_event_file_path,fusi_info,timeoffset):
+    import h5py
+    import pandas as pd
+    # Read the entire log file
+    with h5py.File(task_event_file_path, 'r') as file:
+        events = file['data'][:]
+        task_types = set(event['payload'][3] for event in events if event['payload'][0] == 'stimulus')
+        task_data = {task_type: [] for task_type in task_types}
+        for event in events:
+            payload = eval(event['payload'].decode('utf-8'))
+            task_type = payload['task']
+            if task_type not in task_data:
+                task_data[task_type] = []
+            task_data[task_type].append({
+                'Timestamp': pd.to_datetime(event['timestamp'], unit='s').tz_localize(None) - timedelta(hours=timeoffset),
+                'Stimulus': payload['stimulus']
+            })
+        task_info_objects = {task_type: pd.DataFrame(data) for task_type, data in task_data.items()}
+    return task_info_objects
+
+
+def calculate_multiple_stimulus_events(task_info_objects):
+    """
+    Analyzes multiple task info objects to compute the durations of stimulus events across different tasks.
+    It extracts the times when the stimulus was turned on and off for each task, calculates the duration for each stimulus event, and returns a dictionary with task types as keys and DataFrames with the stimulus conditions, onset times, and durations as values.
+    
+    Args:
+    task_info_objects (dict): A dictionary where each key is a task type and each value is a DataFrame with columns for timestamps and stimulus descriptions.
+    
+    Returns:
+    dict: A dictionary containing the task type as keys and DataFrames with the trial type, onset times, and durations of each stimulus event as values.
+    """
+    results = {}
+    for task_type, df in task_info_objects.items():
+        on_times = df[df['Stimulus'] == 'on']['Timestamp'].reset_index(drop=True)
+        off_times = df[df['Stimulus'] == 'off']['Timestamp'].reset_index(drop=True)
+
+        # Calculating the duration for which the stimulus was on
+        if len(on_times) == len(off_times):
+            stimulus_durations = off_times - on_times
+        else:
+            print(f"Mismatch in 'on' and 'off' events count for task {task_type}.")
+            continue
+
+        # Extract conditions and onset times
+        stimulus_df = df[df['Stimulus'] == 'on']
+        conditions = stimulus_df['Stimulus'].tolist()
+        onsets = stimulus_df['Timestamp'].tolist()
+
+        events = pd.DataFrame(
+            {"trial_type": conditions, "onset": onsets, "duration": stimulus_durations}
+        )
+
+        results[task_type] = events
+        final_events_df = pd.concat(results.values(), ignore_index=True)
+
+    return final_events_df
+
 
 
 def calculate_stimulus_events(behavior_df):
