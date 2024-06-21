@@ -28,7 +28,7 @@ def MakeAnimation(imgs, output_file=None, fps=10, depth=[], lateral=[], time=[])
     matplotlib.rcParams['animation.embed_limit'] = 2**64 # enable plotting large animations
     fig, ax = plt.subplots()
     fig.set_size_inches(imgs.shape[0]/50, imgs.shape[1]/50)
-    cax = ax.imshow(np.rot90(imgs[..., 0]), 
+    cax = ax.imshow(imgs[..., 0].T, 
                     cmap='hot', 
                     extent=[lateral[0], lateral[-1], depth[-1], depth[0]])
 
@@ -37,7 +37,7 @@ def MakeAnimation(imgs, output_file=None, fps=10, depth=[], lateral=[], time=[])
     ax.set_ylabel('depth (mm)')
 
     def update(frame):
-        cax.set_data(np.rot90(imgs[..., frame]))
+        cax.set_data(imgs[..., frame].T)
         if len(time) > 0:
             ax.set_title(f'Frame # {frame} ({time[frame]:.1f} s)')
         else:
