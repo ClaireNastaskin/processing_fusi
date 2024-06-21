@@ -33,6 +33,7 @@ class SessionLoader:
         self.power_doppler_path = None
         self.metadata_path = None
         self.sequence = None
+        self.metadata = None
 
         # check if paths exist
         if isinstance(base_path, str):
@@ -322,7 +323,7 @@ class SessionLoader:
 
         return self.probe_events
 
-    def process_power_doppler_files(self, num_tissue_components=None):
+    def filter_power_doppler_files(self, num_tissue_components=None):
 
         filenames = [f for f in os.listdir(self.power_doppler_path) if f.endswith('.h5')]
 
@@ -347,12 +348,6 @@ class SessionLoader:
 
         # Call the function to match and add filenames
         self.match_and_add_fusi_filenames(filtered_filenames)
-
-        # Finally, load in the actual fusi data
-        fusi_data = self.load_fusi_frames()
-        print(f'\nLoaded in fusi_data with shape: {fusi_data.shape}')
-
-        return fusi_data
 
     def match_and_add_fusi_filenames(self, filtered_filenames):
         # Create a new column in probe_events to store the matched filenames from filtered_filenames
@@ -442,49 +437,63 @@ class SessionLoader:
         # in NIFTI files, dimensions 1, 2, 3 are for space, dimension 4 is for time
         # order the dimensions to be (lateral, elevation, depth, time) to match NIFTI files xyz coordinates
         print("Loading dataset from disk to memory")
-        stacked_pd = dataset_on_disk["power_doppler"].transpose("lateral", "elevation", "depth", "time").compute()
+        fusi_data = dataset_on_disk["power_doppler"].transpose("lateral", "elevation", "depth", "time").compute()
         
-        self.lateral = dataset_on_disk['lateral']
-        self.elevation = dataset_on_disk['elevation']
-        self.depth = dataset_on_disk['depth']
+        # save coordinates and metadata as json
+        depth = dataset_on_disk['depth'].values * 1000
+        lateral = dataset_on_disk['lateral'].values * 1000
+        time = self.probe_events['time_stamp'].values
+
+        self.metadata = {
+            'depth': depth.tolist(),
+            'lateral': lateral.tolist(),
+            'elevation': 1,
+            'unit': 'mm',
+            'time': time.tolist(),
+        }
 
         print("Loaded. releasing dataset_on_disk open-file")
         dataset_on_disk.close()
         
-        return stacked_pd
+        print(f'\nLoaded in fusi_data with shape: {fusi_data.shape}')
 
-    def load_nifti_from_path(self, path_name=None):
+        return fusi_data
+
+    def load_nifti(self, path_name=None, filename=None):
         # if NIFTI file is stored in a different location (e.g. local), provide the path
         if path_name is not None:
             output_path = path_name
         else:
             # assume folder is in the sequence_data_path
             output_path = self.fUSI_corrected_path
-
-        if output_path.exists():
+        
+        imgs = None
+        try:
             # load NIFTI file in output_path
-            for f in output_path.iterdir():
-                if f.is_file() and f.suffix == '.gz' and not f.name.startswith('._'):
-                    print(f'Loading NIFTI file: {f.name}')
-                    imgs = self.load_nifti_file(f)
-                    break
-        else:
-            return ValueError("The directory path does not exist.")
-        if imgs:
-            return ValueError("No NIFTI file found in the specified directory.")
+            if filename is None:
+                for f in output_path.iterdir():
+                    if f.is_file() and f.suffix == '.gz' and not f.name.startswith('._'):
+                        print(f'Loading NIFTI file: {f.name}')
+                        img = nib.load(f)
+                        imgs = img.get_fdata()
+                        break
+            else:
+                img = nib.load(output_path / filename)
+                imgs = img.get_fdata()
+        except ValueError:
+            print("The directory path does not exist.")
+        
+        assert imgs is not None, "No NIFTI file was found."
+        print(f'Loaded power doppler images stored in NIFTI. Shape: {imgs.shape}')
+        
+        # load metadata json if it exists
+        if (output_path / 'metadata.json').exists():
+            with open(output_path / 'metadata.json') as f:
+                self.metadata = json.load(f)
+
         return imgs
 
-    def load_nifti_file(self, filename=None):
-        img = nib.load(filename)
-        
-        if img is None:
-            raise ValueError("No NIFTI file found in the specified directory.")
-        else:
-            imgs = img.get_fdata()
-            print(f'Loaded power doppler images stored in NIFTI. Shape: {imgs.shape}')
-            return imgs
-
-    def save_nifti_file(self, data, output_path=None, filename='original.nii.gz'):
+    def save_to_nifti(self, data, output_path=None, filename='original.nii.gz'):
         """
         Saves the power doppler data to a NIFTI file.
         
@@ -514,11 +523,14 @@ class SessionLoader:
         nifti_img = nib.Nifti2Image(data, 
                                     affine=affine,
                                     header=hdr)
-
         # Create a NIFTI image
-        img = nib.Nifti2Image(data, np.eye(4))
-        img.to_filename(output_path / filename)
+        nifti_img.to_filename(output_path / filename)
         print(f'Saved PD NIFTI in {output_path}')
-        print(f'of filename: {filename}')
+        print(f'with filename: {filename}')
+
+        # Save metadata from load_fusi_frames() as a json if it exists
+        if self.metadata is not None:
+            with open(output_path / 'metadata.json', 'w') as f:
+                json.dump(self.metadata, f)
  
         return output_path / filename

@@ -33,8 +33,8 @@ def MakeAnimation(imgs, output_file=None, fps=10, depth=[], lateral=[], time=[])
                     extent=[lateral[0], lateral[-1], depth[-1], depth[0]])
 
     # Set axis labels
-    ax.set_xlabel('Y (mm)')
-    ax.set_ylabel('X (mm)')
+    ax.set_xlabel('lateral (mm)')
+    ax.set_ylabel('depth (mm)')
 
     def update(frame):
         cax.set_data(np.rot90(imgs[..., frame]))

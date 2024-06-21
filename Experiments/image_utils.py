@@ -45,20 +45,20 @@ def show_imgs(imgs, frame_indices=np.arange(10), timestamps=None, labels=None, f
     plt.tight_layout(pad=0.3, w_pad=0.1)
     plt.show()
 
-def plot_pd_intensity_over_time(imgs, y_max=None):
+def plot_pd_intensity_over_time(imgs, y_lim=[]):
     fig, ax = plt.subplots()
     # get the average intensity over time by the axis
-    average_over_time = np.mean(imgs, axis=tuple(range(0, imgs.ndim - 1)))
-    plt.plot(average_over_time)
-    plt.title(f'Doppler Intensity Over Time = {average_over_time.mean().round()}')
+    doppler_intensity_per_frame = np.mean(imgs, axis=tuple(range(0, imgs.ndim - 1)))
+    plt.plot(doppler_intensity_per_frame)
+    plt.title(f'Doppler Intensity Over Time = {doppler_intensity_per_frame.mean().round()}')
     plt.xlabel('Frame #')
     plt.ylabel('Average Intensity')
-    if y_max:
-        plt.ylim(0, y_max)
+    if len(y_lim) == 2:
+        plt.ylim(y_lim[0], y_lim[1])
     else:
-        plt.ylim(0, max(500, average_over_time.max()))
+        plt.ylim(0, max(500, doppler_intensity_per_frame.max()))
     plt.show()
-    return average_over_time
+    return doppler_intensity_per_frame
 
 def phase_corr_translation(im1, im2):
     
@@ -231,7 +231,6 @@ def register_sitk(images, metric='correlation'):
 
     return registered_array, extra_df
 
-
 def register_ants(images, type_of_transform='Rigid'):
     if isinstance(images, np.ndarray):
         fixed_image = ants.from_numpy(images[..., 0])
@@ -269,6 +268,8 @@ def register_ants(images, type_of_transform='Rigid'):
                       })
 
     registered_images = np.stack(transformed_images, axis=-1)
+    print('Registered images shape:', registered_images.shape)
+    print('transformed_images shape:', len(transformed_images))
     extra_df = pd.DataFrame(extra)
 
     return registered_images, extra_df
@@ -324,3 +325,84 @@ def plot_transform_params(extra, range_oop=[], metric_name='', in_plane_indices=
     ax.legend()
     ax.grid(True)
     plt.tight_layout()
+
+
+# cluster stuff
+def get_consecutive_labels_counts(labels):
+    labels_tmp = np.append(labels, 0.01)
+    summary_count = {}
+    count_consecutive = 1
+    prev_label = labels_tmp[0]
+    for i in range(1, len(labels_tmp)):
+        curr_label = labels_tmp[i]
+        if curr_label == prev_label:
+            count_consecutive += 1
+        else:
+            if prev_label not in summary_count:
+                summary_count[prev_label] = [count_consecutive]
+            else:
+                summary_count[prev_label].extend([count_consecutive])
+            count_consecutive = 1
+        prev_label = curr_label
+    return summary_count
+
+def remap_cluster_to_labels(original_labels, manual_oop_labels=[]):
+    # Re-order the labels and assign plane classes
+    unique_labels, label_counts = np.unique(original_labels, return_counts=True)
+    first_label_appear = np.zeros(len(unique_labels), )
+    for i in range(len(unique_labels)):
+        first_label_appear[i] = np.where(original_labels == unique_labels[i])[0][0]
+    if manual_oop_labels == []:
+        labels = pd.DataFrame({'orginal': original_labels})
+    else:
+        labels = pd.DataFrame({'manual': manual_oop_labels, 'orginal': original_labels})
+
+    # mapping kmean labels to string labels 
+    mapping_dict = {}
+    # discard the plane with the least number of points
+    discard_index = np.argmin(label_counts)
+    mapping_dict[discard_index] = 'discard'
+    # in-plane is the plane with the most number of points
+    in_plane_index = np.argmax(label_counts)
+    mapping_dict[in_plane_index] = 'in-plane'
+    unique_labels = np.delete(unique_labels,[in_plane_index, discard_index])
+    # order the remaining clusters of plane based on their first appearance
+    order_ind = np.argsort(first_label_appear[unique_labels])
+    unique_labels = unique_labels[order_ind]
+    for i in range(len(unique_labels)):
+        mapping_dict[unique_labels[i]] = 'new oop ' + str(i+1)
+    # add string labels col to dataframe
+    labels['class'] = labels['orginal'].map(mapping_dict)
+
+    # mapping string labels to new labels
+    mapping_dict = {}
+    mapping_dict = {'discard':-1, 'in-plane': 0}
+    if len(label_counts) > 2:
+        for i in range(1, len(label_counts)-1):
+            mapping_dict['new oop ' + str(i)] = i
+    # add relabelled labels col to dataframe
+    labels['remap_kmean'] = labels['class'].map(mapping_dict)
+    pred_labels = labels['remap_kmean'].values
+
+    return pred_labels, labels
+
+def plot_embedding(embedding, labels, title='', legend='on'):
+    unique_labels = np.unique(labels)
+    label_classes = {}
+    for l in unique_labels:
+        if l == 0:
+            label_classes[l] = 'in-plane'
+        elif l < 0:
+            label_classes[l] = 'discard out-of-plane ' + str(l)
+        elif l > 0:
+            label_classes[l] = 'new out-of-plane ' + str(l)
+    plt.figure(figsize=(4,3))
+    scatter = plt.scatter(embedding[:, 0],embedding[:, 1],c=labels,s=5)
+    plt.gca().set_aspect('equal', 'datalim')
+    if legend == 'on':
+        plt.legend(handles=scatter.legend_elements(num=[k for k in label_classes.keys()])[0], 
+                labels=label_classes.values(),
+                loc='lower left', bbox_to_anchor=(1.02,0), ncol=1)
+    plt.title(title)
+    plt.xticks([])
+    plt.yticks([])
