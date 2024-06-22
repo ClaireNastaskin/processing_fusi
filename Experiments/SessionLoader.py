@@ -103,11 +103,11 @@ class SessionLoader:
         if not self.raw_data_path.exists():
             raise Warning("The raw data path does not exist.")
         if not self.beamformed_path.exists():
-            raise ValueError("The beamformed path does not exist.")
+            raise Warning("The beamformed path does not exist.")
         if not self.power_doppler_path.exists():
-            raise ValueError("The power doppler path does not exist.")
+            raise Warning("The power doppler path does not exist.")
         if not self.metadata_path.exists():
-            raise ValueError("The metadata path does not exist.")
+            raise Warning("The metadata path does not exist.")
 
         self.list_acquisition_directories()
         self.print_paths()
@@ -270,7 +270,7 @@ class SessionLoader:
         stimulus_durations = off_times - on_times
         # Extract conditions and onset times
         stimulus_df = behavior_df[behavior_df['Event'] == 'stimulus_onset']
-        conditions = stimulus_df['Event'].tolist()
+        conditions = stimulus_df['Stimulus'].tolist()
         onsets = stimulus_df['Timestamp'].tolist()
 
         events = pd.DataFrame(
@@ -456,8 +456,11 @@ class SessionLoader:
         dataset_on_disk.close()
         
         print(f'\nLoaded in fusi_data with shape: {fusi_data.shape}')
+        N=2
+        frames_data_replicated = np.tile(fusi_data, (1, N, 1, 1))
+        # frames_data_replicated = np.flip(frames_data_replicated, axis=2) # get in the right coordinate system
 
-        return fusi_data
+        return frames_data_replicated
 
     def load_nifti(self, path_name=None, filename=None):
         # if NIFTI file is stored in a different location (e.g. local), provide the path

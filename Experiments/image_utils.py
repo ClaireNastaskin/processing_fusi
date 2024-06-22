@@ -288,7 +288,7 @@ def plot_transform_params(extra, range_oop=[], metric_name='', in_plane_indices=
     # add shaded region for out-of-plane frames
         if len(range_oop) > 0:
             ax.axvspan(range_oop[0], range_oop[1], color='k', alpha=0.2, label='Discarded frames')
-            for i in range(2, len(range_oop)-2, 2):
+            for i in range(2, len(range_oop)-1, 2):
                 ax.axvspan(range_oop[i], range_oop[i+1], color='k', alpha=0.2)
 
     ax = axs[0]
@@ -309,7 +309,7 @@ def plot_transform_params(extra, range_oop=[], metric_name='', in_plane_indices=
     add_shaded_oop_indices(ax, range_oop)
     ax.set_title('Translation')
     ax.set_ylabel('pixel')
-    lim = max(np.abs(extra['translation_x'].max()), np.abs(extra['translation_y'].max()), 5)
+    lim = max(np.abs(extra['translation_x']).max(), np.abs(extra['translation_y']).max(), 5)
     ax.set_ylim(-lim, lim)
     ax.legend()
     ax.grid(True)
