@@ -470,21 +470,28 @@ class SessionLoader:
             # assume folder is in the sequence_data_path
             output_path = self.fUSI_corrected_path
         
-        imgs = None
-        try:
-            # load NIFTI file in output_path
-            if filename is None:
+        if filename is not None:
+            full_filename = output_path / filename
+        else:
+            full_filename = None
+        
+        # load NIFTI file in output_path
+        if full_filename is None:
+            print(f"No filename is given. Looking for NIFTI file in {output_path}.")
+            try:
                 for f in output_path.iterdir():
                     if f.is_file() and f.suffix == '.gz' and not f.name.startswith('._'):
                         print(f'Loading NIFTI file: {f.name}')
                         img = nib.load(f)
                         imgs = img.get_fdata()
                         break
-            else:
-                img = nib.load(output_path / filename)
-                imgs = img.get_fdata()
-        except ValueError:
-            print("The directory path does not exist.")
+            except FileNotFoundError:
+                print(f'No NIFTI file found in {output_path}.')
+        elif full_filename.exists():
+            img = nib.load(full_filename)
+            imgs = img.get_fdata()
+        else:
+            imgs = None
         
         assert imgs is not None, "No NIFTI file was found."
         print(f'Loaded power doppler images stored in NIFTI. Shape: {imgs.shape}')
@@ -493,7 +500,10 @@ class SessionLoader:
         if (output_path / 'metadata.json').exists():
             with open(output_path / 'metadata.json') as f:
                 self.metadata = json.load(f)
+                print('Loaded metadata from json file.')
 
+        assert self.metadata is not None, "No metadata json file found."
+        
         return imgs
 
     def save_to_nifti(self, data, output_path=None, filename='original.nii.gz'):

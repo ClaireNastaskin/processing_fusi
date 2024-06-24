@@ -386,7 +386,7 @@ def remap_cluster_to_labels(original_labels, manual_oop_labels=[]):
 
     return pred_labels, labels
 
-def plot_embedding(embedding, labels, title='', legend='on'):
+def plot_embedding(embedding, labels, title='', legend='on', centroids=[]):
     unique_labels = np.unique(labels)
     label_classes = {}
     for l in unique_labels:
@@ -399,6 +399,8 @@ def plot_embedding(embedding, labels, title='', legend='on'):
     plt.figure(figsize=(4,3))
     scatter = plt.scatter(embedding[:, 0],embedding[:, 1],c=labels,s=5)
     plt.gca().set_aspect('equal', 'datalim')
+    if len(centroids) > 0:
+        plt.scatter(centroids[:, 0], centroids[:, 1], c='k', s=100, marker='x', label='Cluster centroids')
     if legend == 'on':
         plt.legend(handles=scatter.legend_elements(num=[k for k in label_classes.keys()])[0], 
                 labels=label_classes.values(),
@@ -406,3 +408,4 @@ def plot_embedding(embedding, labels, title='', legend='on'):
     plt.title(title)
     plt.xticks([])
     plt.yticks([])
+
