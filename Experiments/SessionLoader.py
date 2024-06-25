@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import json
 import nibabel.nifti2 as nib
 import xarray as xr
-
+from tqdm import tqdm
 
 class SessionLoader:
     def __init__(self, base_path, sequence=None):
@@ -32,8 +32,11 @@ class SessionLoader:
         self.beamformed_path = None
         self.power_doppler_path = None
         self.metadata_path = None
+        self.fusi_path = None
+        self.fusi_corrected_path = None
         self.sequence = None
         self.metadata = None
+        self.n_frames = 0
 
         # check if paths exist
         if isinstance(base_path, str):
@@ -374,7 +377,7 @@ class SessionLoader:
             raise Warning("Some entries in 'fusi_file_name' are not populated.")
         else:
             print("All entries in 'fusi_file_name' are properly populated.")
-
+        self.n_frames = len(self.probe_events)
         return self.probe_events
             
     def load_fusi_frames(self, frame_indices=-1):
@@ -394,37 +397,11 @@ class SessionLoader:
 
         # Check if all frame_indices are valid
         if frame_indices == -1:
-            frame_indices = list(range(len(self.probe_events)))
+            frame_indices = list(range(self.n_frames))
         elif any(frame_index < 0 or frame_index >= len(self.probe_events) for frame_index in frame_indices):
             raise ValueError("One or more invalid frame indices")
-        
-        
-        # ------------------- Load the data from the h5 files (OLD) -------------------
-        # Initialize a list to hold the data arrays
-        # data_list = []
-        # for frame_index in frame_indices:
-        #     # Get the filename for the desired frame
-        #     filename = self.probe_events.iloc[frame_index]['fusi_file_name']
-        #     file_path = os.path.join(self.power_doppler_path, filename)
 
-        #     # Load the h5 file
-        #     with h5py.File(file_path, 'r') as file:
-        #         # Assuming the dataset name in the h5 file is 'beamformed'
-        #         try:
-        #             data = file['beamformed'][:]
-        #         except KeyError:
-        #             data = file['power_doppler'][:]
-        #         data_list.append(data)
-        
-        # # Stack the data arrays along the last dimension
-        # stacked_pd = np.stack(data_list, axis=-1)
-
-        # N=2
-        # frames_data_replicated = np.tile(stacked_pd, (1, N, 1, 1))
-        # frames_data_replicated = np.flip(frames_data_replicated, axis=2) # get in the right coordinate system
-        # return frames_data_replicated
-
-        # ------------------- Load the data from the h5 files (NEW) -------------------
+        #  Load the data from the h5 files
         self.probe_events['full_path'] = self.power_doppler_path / self.probe_events['fusi_file_name']
         dataset_on_disk = xr.open_mfdataset(
             paths=self.probe_events.loc[frame_indices]['full_path'],
@@ -455,10 +432,9 @@ class SessionLoader:
         print("Loaded. releasing dataset_on_disk open-file")
         dataset_on_disk.close()
         
-        print(f'\nLoaded in fusi_data with shape: {fusi_data.shape}')
         N=2
         frames_data_replicated = np.tile(fusi_data, (1, N, 1, 1))
-        # frames_data_replicated = np.flip(frames_data_replicated, axis=2) # get in the right coordinate system
+        print(f'\nLoaded in fusi_data with shape: {frames_data_replicated.shape}')
 
         return frames_data_replicated
 

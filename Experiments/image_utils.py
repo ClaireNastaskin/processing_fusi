@@ -160,10 +160,9 @@ def get_threshold_image(imgs, threshold=.5):
         density[i] = vessel_density
     return threshold_imgs, density
 
-def register_sitk(images, metric='correlation'):
+def register_sitk(images, metric='correlation', ref_index=0):
     sitk_images = [sitk.GetImageFromArray(images[..., i]) for i in range(images.shape[-1])]
     # Set the fixed image
-    ref_index = 0
     fixed_image = sitk_images[ref_index]
 
     # Init arrays with first fixed image
@@ -231,9 +230,9 @@ def register_sitk(images, metric='correlation'):
 
     return registered_array, extra_df
 
-def register_ants(images, type_of_transform='Rigid'):
+def register_ants(images, type_of_transform='Rigid', ref_index=0):
     if isinstance(images, np.ndarray):
-        fixed_image = ants.from_numpy(images[..., 0])
+        fixed_image = ants.from_numpy(images[..., ref_index])
         transformed_images = []
     # Initialize transformations array with zero for the first image (identity transformation)
     extra = []
