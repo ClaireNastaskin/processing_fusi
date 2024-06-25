@@ -230,7 +230,7 @@ def register_sitk(images, metric='correlation', ref_index=0):
 
     return registered_array, extra_df
 
-def register_ants(images, type_of_transform='Rigid', ref_index=0):
+def register_ants(images, type_of_transform='Rigid', ref_index=0, crop_border=0):
     if isinstance(images, np.ndarray):
         fixed_image = ants.from_numpy(images[..., ref_index])
         transformed_images = []
@@ -238,16 +238,28 @@ def register_ants(images, type_of_transform='Rigid', ref_index=0):
     extra = []
     for i in range(images.shape[-1]):
         moving_image = ants.from_numpy(images[..., i])
-        result = ants.registration(fixed=fixed_image, moving=moving_image, type_of_transform='Rigid')
+        result = ants.registration(fixed=fixed_image, 
+                                   moving=moving_image, 
+                                   type_of_transform='Rigid',
+                                   random_seed=1001,
+                                   )
 
         # Extract the transformed image for visualization or further analysis
         transformed_image = result['warpedmovout']
-        transformed_images.append(transformed_image.numpy())
 
         # get the similarity metric value before and after registration
         # negative because the similarity metric is minimized for optimization
         similarity_metric_before = - ants.image_mutual_information( fixed_image, moving_image )
         similarity_metric_after = - ants.image_mutual_information( fixed_image, transformed_image )
+        
+        # Crop the transformed image to remove borders if crop_border is set to a value greater than 0
+        lateral, depth = transformed_image.shape[0], transformed_image.shape[1]
+        transformed_image = ants.crop_indices(transformed_image, 
+                                              lowerind=(crop_border,crop_border), 
+                                              upperind=(lateral - crop_border, depth - crop_border) )
+        
+        # Append the transformed image to the list
+        transformed_images.append(transformed_image.numpy())
 
         # Extract parameters from the transform
         transform = result['fwdtransforms'][0] if len(result['fwdtransforms']) > 0 else None
@@ -268,7 +280,6 @@ def register_ants(images, type_of_transform='Rigid', ref_index=0):
 
     registered_images = np.stack(transformed_images, axis=-1)
     print('Registered images shape:', registered_images.shape)
-    print('transformed_images shape:', len(transformed_images))
     extra_df = pd.DataFrame(extra)
 
     return registered_images, extra_df

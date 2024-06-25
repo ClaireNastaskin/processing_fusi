@@ -103,14 +103,14 @@ class SessionLoader:
         self.metadata_path = self.sequence_data_path / 'metadata'        
 
         # Check if paths exist
-        if not self.raw_data_path.exists():
-            raise Warning("The raw data path does not exist.")
-        if not self.beamformed_path.exists():
-            raise Warning("The beamformed path does not exist.")
-        if not self.power_doppler_path.exists():
-            raise Warning("The power doppler path does not exist.")
-        if not self.metadata_path.exists():
-            raise Warning("The metadata path does not exist.")
+        # if not self.raw_data_path.exists():
+        #     raise Warning("The raw data path does not exist.")
+        # if not self.beamformed_path.exists():
+        #     raise Warning("The beamformed path does not exist.")
+        # if not self.power_doppler_path.exists():
+        #     raise Warning("The power doppler path does not exist.")
+        # if not self.metadata_path.exists():
+        #     raise Warning("The metadata path does not exist.")
 
         self.list_acquisition_directories()
         self.print_paths()
