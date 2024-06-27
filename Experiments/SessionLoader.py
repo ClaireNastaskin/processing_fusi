@@ -11,7 +11,7 @@ import xarray as xr
 from tqdm import tqdm
 
 class SessionLoader:
-    def __init__(self, base_path, sequence=None):
+    def __init__(self, base_path, sequence=None, output_path=None):
         """
         Initializes the SessionLoader object with the base path to the data and the sequence to load.
 
@@ -28,13 +28,14 @@ class SessionLoader:
         self.task_event_file_path = None
         self.probe_event_file_path = None
         self.sequence_data_path = None
+        self.sequence_folders = None
+        self.sequence = sequence
         self.raw_data_path = None
         self.beamformed_path = None
         self.power_doppler_path = None
         self.metadata_path = None
         self.fusi_path = None
-        self.fusi_corrected_path = None
-        self.sequence = None
+        self.output_path = output_path
         self.metadata = None
         self.n_frames = 0
 
@@ -47,30 +48,35 @@ class SessionLoader:
             raise ValueError("The specified base path does not exist.")
         
         # Find the log file path in the logs folder
-        for filename in os.listdir(self.base_path / 'logs'):
-            if re.search(r'task', filename):
-                self.log_file_path = self.base_path / 'logs' / filename
-        if self.log_file_path is None:
-            raise Warning("The log file does not exist.")
+        if not (self.base_path / 'logs').exists():
+            print("The log file does not exist.")
+        else:
+            for filename in os.listdir(self.base_path / 'logs'):
+                if re.search(r'task', filename):
+                    self.log_file_path = self.base_path / 'logs' / filename
             
         # Find the event file path in the streams folder
-        for filename in os.listdir(self.base_path / 'streams'):
-            if re.search(r'task.*event', filename) and filename[:2] != '._':
-                self.task_event_file_path = self.base_path / 'streams' / filename
-            if re.search(r'probe.*event', filename) and filename[:2] != '._':
-                self.probe_event_file_path = self.base_path / 'streams' / filename
+        if not (self.base_path / 'streams').exists():
+            print("The streams file does not exist.")
+        else:
+            for filename in os.listdir(self.base_path / 'streams'):
+                if re.search(r'task.*event', filename) and filename[:2] != '._':
+                    self.task_event_file_path = self.base_path / 'streams' / filename
+                if re.search(r'probe.*event', filename) and filename[:2] != '._':
+                    self.probe_event_file_path = self.base_path / 'streams' / filename
         
         if self.task_event_file_path is None:
-            raise Warning("The task event file does not exist.")
+            print("The task event file does not exist.")
             
         if self.probe_event_file_path is None:
-            raise Warning("The probe event file does not exist.")
+            print("The probe event file does not exist.")
             
         # Load the sequence folders
         acquisitions_path = self.base_path / 'acquisitions'
-        self.sequence_folders = [d.name for d in acquisitions_path.iterdir() if d.is_dir()]
-        if not self.sequence_folders:
-            raise Warning("No sequence is found in the acquisitions folder.")
+        if acquisitions_path.exists():
+            self.sequence_folders = [d.name for d in acquisitions_path.iterdir() if d.is_dir()]
+        if self.sequence_folders is None:
+            print("No sequence is found in the given base path.")
 
         # Load the sequence if provided
         if sequence is not None:
@@ -81,8 +87,9 @@ class SessionLoader:
         Load the specified sequence and set the paths for raw data, beamformed, power doppler, and metadata.
         
         Args:
-        sequence (str or int): The sequence to load. If an integer is provided, the sequence will be selected by index.
-        
+        sequence (str or int): The sequence name to load. If an integer is provided, the sequence will be selected by index. 
+        sequence_index (int): The index of the sequence to load. If None, the sequence name will be used.
+    
         Raises:
         ValueError: If the sequence does not exist.
         """
@@ -93,27 +100,23 @@ class SessionLoader:
         elif sequence_index is not None and sequence_index < len(self.sequence_folders) and sequence_index >= 0:
             self.sequence = self.sequence_folders[sequence_index]
         else:
-            raise ValueError(f'The specified sequence name {sequence} does not exist. Try list_acquisition_directories() to see available sequences.')
+            print(f'Could not load any sequence. Try list_acquisition_directories() to see available sequences.')
+            return
         self.sequence_data_path = self.base_path / 'acquisitions' / self.sequence
-        # Check if the sequence_data_path exists
 
         self.raw_data_path = self.sequence_data_path / 'raw_frame_data'
         self.beamformed_path = self.sequence_data_path / 'beamformed'
         self.power_doppler_path = self.sequence_data_path / 'power_doppler'
         self.metadata_path = self.sequence_data_path / 'metadata'        
-
-        # Check if paths exist
-        # if not self.raw_data_path.exists():
-        #     raise Warning("The raw data path does not exist.")
-        # if not self.beamformed_path.exists():
-        #     raise Warning("The beamformed path does not exist.")
-        # if not self.power_doppler_path.exists():
-        #     raise Warning("The power doppler path does not exist.")
-        # if not self.metadata_path.exists():
-        #     raise Warning("The metadata path does not exist.")
-
+        
         self.list_acquisition_directories()
+
+        # check if output_path is defined. Otherwise, define to save within base_path
+        if self.sequence_data_path is not None and self.output_path is None:
+            self.output_path = self.base_path / 'fUSI_corrected'
+
         self.print_paths()
+
 
     def list_acquisition_directories(self):
         """
@@ -133,6 +136,7 @@ class SessionLoader:
                 else:
                     print(f'    {i}. {directory}')
 
+
     def print_paths(self):
         print("\nLoaded directories:\n")
         print(f' - log_file_path:       \t{self.log_file_path}')
@@ -143,10 +147,11 @@ class SessionLoader:
         print(f' - beamformed_path:     \t{self.beamformed_path}')
         print(f' - power_doppler_path:  \t{self.power_doppler_path}')
         print(f' - metadata_path:       \t{self.metadata_path}')
+        print(f' - output_path:         \t{self.output_path}')
 
     def extract_power_doppler_info(self):
         """
-        Reads in HDF5 files in a folder, extracts filenames and timestamps and event descriptions, and organizes this information into a DataFrame.
+        Reads in HDF5 filenames in a folder, extracts filenames and timestamps and event descriptions, and organizes this information into a DataFrame.
 
         Args:
         power_doppler_path (str): path to folder containing power doppler HDF5 files
@@ -347,7 +352,7 @@ class SessionLoader:
             filtered_filenames = [f for f in filenames if f'num_tissue_components={closest_num_tissue_components}' in f]
             print(f"Warning: num_tissue_components={num_tissue_components} is not available. Using closest available value: {closest_num_tissue_components}")
         
-        print(f'Number of file included: {len(filtered_filenames)}/{len(filenames)}')
+        print(f'Number of file scanned: {len(filtered_filenames)}/{len(filenames)}')
 
         # Call the function to match and add filenames
         self.match_and_add_fusi_filenames(filtered_filenames)
@@ -359,7 +364,7 @@ class SessionLoader:
         if not hasattr(self, 'probe_events'):
             self.extract_probe_events()
 
-        self.probe_events['fusi_file_name'] = ''
+        self.probe_events['fusi_file_name'] = None
 
         # Iterate through each row in probe_events
         for index, row in self.probe_events.iterrows():
@@ -374,7 +379,7 @@ class SessionLoader:
         
         # Check if every entry in 'fusi_file_name' column is populated
         if self.probe_events['fusi_file_name'].isnull().any():
-            raise Warning("Some entries in 'fusi_file_name' are not populated.")
+            print("Some entries in 'fusi_file_name' are not populated. See more ses.probe_events")
         else:
             print("All entries in 'fusi_file_name' are properly populated.")
         self.n_frames = len(self.probe_events)
@@ -444,7 +449,7 @@ class SessionLoader:
             output_path = path_name
         else:
             # assume folder is in the sequence_data_path
-            output_path = self.fUSI_corrected_path
+            output_path = self.output_path
         
         if filename is not None:
             full_filename = output_path / filename
@@ -476,9 +481,17 @@ class SessionLoader:
         if (output_path / 'metadata.json').exists():
             with open(output_path / 'metadata.json') as f:
                 self.metadata = json.load(f)
-                print('Loaded metadata from json file.')
+                print('Loaded metadata from metadata.json.')
 
         assert self.metadata is not None, "No metadata json file found."
+        
+        # load probe json if it exists
+        if (output_path / 'probe_events.csv').exists():
+            self.probe_events = pd.read_csv((output_path / 'probe_events.csv'), index_col='index')
+            print('Loaded probe_events from probe_events.csv.')
+
+        assert self.metadata is not None, "No metadata json file found."
+        
         
         return imgs
 
@@ -488,16 +501,24 @@ class SessionLoader:
         
         Args:
         data (np.array): The power doppler data to save.
-        output_path (str): The path to save the NIFTI file. If None, the file will be saved in the fUSI_corrected folder.
+        output_path (str): The path to save the NIFTI file. If None, the file will be saved in the output folder.
         
         Returns:
-        str: The path to the saved NIFTI file.
+        full path name: The path to the saved NIFTI file.
+
         """
         if output_path is None:
-            output_path = self.fUSI_corrected_path
+            output_path = self.output_path
         else:
             output_path = Path(output_path)
-
+                
+        if output_path is not None and not output_path.exists():
+            try:
+                output_path.mkdir(parents=True, exist_ok=True)
+            except PermissionError:
+                print('\nWarning: You DO NOT have write access to the base path. Please provide a different output path.')
+                output_path = None
+                
         # affine to rescale and flip the images
         affine=np.array([[0.2, 0.,  0.,  0.],
                         [0.,  0.2, 0.,  0.],
@@ -514,12 +535,17 @@ class SessionLoader:
                                     header=hdr)
         # Create a NIFTI image
         nifti_img.to_filename(output_path / filename)
-        print(f'Saved PD NIFTI in {output_path}')
-        print(f'with filename: {filename}')
+        print(f'\nSaved PD NIFTI as {filename}')
 
         # Save metadata from load_fusi_frames() as a json if it exists
         if self.metadata is not None:
             with open(output_path / 'metadata.json', 'w') as f:
                 json.dump(self.metadata, f)
- 
+        print('Saved metadata as metadata.json.')
+
+        # save probe_events to csv
+        self.probe_events.to_csv(output_path / 'probe_events.csv', index=True, index_label='index')
+        print('Saved probe events as probe_events.csv.')
+        print(f'Output location: {output_path}')
+
         return output_path / filename
