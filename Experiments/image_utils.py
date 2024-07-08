@@ -45,20 +45,39 @@ def show_imgs(imgs, frame_indices=np.arange(10), timestamps=None, labels=None, f
     plt.tight_layout(pad=0.3, w_pad=0.1)
     plt.show()
 
-def plot_pd_intensity_over_time(imgs, y_lim=[]):
+def plot_pd_intensity_over_time(imgs, y_lim=[], outlier_threshold=0):
     fig, ax = plt.subplots()
     # get the average intensity over time by the axis
-    doppler_intensity_per_frame = np.mean(imgs, axis=tuple(range(0, imgs.ndim - 1)))
-    plt.plot(doppler_intensity_per_frame)
-    plt.title(f'Doppler Intensity Over Time = {doppler_intensity_per_frame.mean().round()}')
+    doppler_intensity = np.mean(imgs, axis=tuple(range(0, imgs.ndim - 1)))
+    
+    plt.plot(doppler_intensity)
+    plt.title(f'Average Doppler Intensity Over Time = {doppler_intensity.mean().round()}')
     plt.xlabel('Frame #')
     plt.ylabel('Average Intensity')
     if len(y_lim) == 2:
         plt.ylim(y_lim[0], y_lim[1])
     else:
-        plt.ylim(0, max(500, doppler_intensity_per_frame.max()))
+        plt.ylim(0, max(500, doppler_intensity.max()))
+    
+    # identify the frames with intensity above a threshold (user defined)
+    if outlier_threshold > 0:
+        median_intensity = np.median(doppler_intensity)
+        outlier_intensity_frames = np.abs(doppler_intensity - median_intensity) > outlier_threshold
+        outlier_frames = np.where(outlier_intensity_frames)[0]
+        print(f'Outlier frames more than {outlier_threshold:.1f} from median: ', outlier_frames)
+        
+        # plot the median intensity and the outliers
+        plt.hlines(median_intensity, 0, len(doppler_intensity),color='k', label='Median Intensity')
+        plt.hlines(median_intensity - outlier_threshold, 0, len(doppler_intensity), color='k', linestyle='--')
+        plt.hlines(median_intensity + outlier_threshold, 0, len(doppler_intensity), color='k', linestyle='--', label='threshold')
+        plt.scatter(outlier_frames, 
+                    doppler_intensity[outlier_intensity_frames], 
+                    color='r', label='Outlier indices')
+        plt.legend()
+    else:
+        outlier_intensity_frames = []
     plt.show()
-    return doppler_intensity_per_frame
+    return doppler_intensity, outlier_intensity_frames, fig
 
 def phase_corr_translation(im1, im2):
     
@@ -284,7 +303,16 @@ def register_ants(images, type_of_transform='Rigid', ref_index=0, crop_border=0)
 
     return registered_images, extra_df
 
-def plot_transform_params(extra, range_oop=[], metric_name='', in_plane_indices=[]):
+def crop_images(images, crop_border=0):
+    transformed_images = []
+    for i in range(images.shape[-1]):
+        image = images[..., i]
+        lateral, depth = image.shape[0], image.shape[1]
+        cropped_image = image[crop_border:lateral - crop_border, crop_border:depth - crop_border]
+        transformed_images.append(cropped_image)
+    return np.stack(transformed_images, axis=-1)
+
+def plot_transform_params(extra, oop_labels=[], metric_name='', in_plane_indices=[], annotate_ref_frame: int = None):
     # Create a new figure with three subplots
     # similarity metric value
     # translation after registration
@@ -294,12 +322,22 @@ def plot_transform_params(extra, range_oop=[], metric_name='', in_plane_indices=
         in_plane_indices = range(len(extra))
     fig, axs = plt.subplots(3, 1,figsize=(8,8))
 
-    def add_shaded_oop_indices(ax, range_oop):
+    # get the range of oop start stops for plotting
+    oop_labels_pad = np.pad(oop_labels, (1, 1), 'constant', constant_values=(0, 0))
+    range_oop = [i for i in range(len(oop_labels_pad)-1) if oop_labels_pad[i+1] - oop_labels_pad[i] != 0]
+    if len(range_oop) == 1:
+        range_oop.append(len(oop_labels)) # append last index at the end
+
+    def add_shaded_oop_indices(ax, oop_labels):
     # add shaded region for out-of-plane frames
         if len(range_oop) > 0:
-            ax.axvspan(range_oop[0], range_oop[1], color='k', alpha=0.2, label='Discarded frames')
+            ax.axvspan(range_oop[0], range_oop[1], color='k', alpha=0.2, label=f'Discarded frames')
             for i in range(2, len(range_oop)-1, 2):
                 ax.axvspan(range_oop[i], range_oop[i+1], color='k', alpha=0.2)
+
+    def add_annotation_ref_frame(ax, annotate_ref_frame, y):
+        if annotate_ref_frame is not None:
+            ax.scatter(annotate_ref_frame, y[annotate_ref_frame], color='magenta', label=f'reference frames: {annotate_ref_frame}')
 
     ax = axs[0]
     ax.plot(in_plane_indices, extra['initial_similarity'], label='initial_similarity')
@@ -308,6 +346,7 @@ def plot_transform_params(extra, range_oop=[], metric_name='', in_plane_indices=
     after = extra['after_similarity'].mean()
     improvement = (after - before) / before * 100
     add_shaded_oop_indices(ax, range_oop)
+    add_annotation_ref_frame(ax, annotate_ref_frame, extra['after_similarity'])
     ax.set_title(f'Similarity Metric: {metric_name}, {improvement:.2f}% improvement')
     ax.set_ylabel('Similarity Metric')
     ax.legend()
@@ -317,6 +356,7 @@ def plot_transform_params(extra, range_oop=[], metric_name='', in_plane_indices=
     ax.plot(in_plane_indices, extra['translation_x'], label='x')
     ax.plot(in_plane_indices, extra['translation_y'], label='y')
     add_shaded_oop_indices(ax, range_oop)
+    add_annotation_ref_frame(ax, annotate_ref_frame, extra['translation_x'])
     ax.set_title('Translation')
     ax.set_ylabel('pixel')
     lim = max(np.abs(extra['translation_x']).max(), np.abs(extra['translation_y']).max(), 5)
@@ -327,6 +367,7 @@ def plot_transform_params(extra, range_oop=[], metric_name='', in_plane_indices=
     ax = axs[2]
     ax.plot(in_plane_indices, extra['rotation'], label='rotation')
     add_shaded_oop_indices(ax, range_oop)
+    add_annotation_ref_frame(ax, annotate_ref_frame, extra['rotation'])
     ax.set_title('Rotation')
     ax.set_xlabel('Frame Index')
     ax.set_ylabel('Angle')
@@ -356,16 +397,13 @@ def get_consecutive_labels_counts(labels):
         prev_label = curr_label
     return summary_count
 
-def remap_cluster_to_labels(original_labels, manual_oop_labels=[]):
+def remap_cluster_to_labels(original_labels):
     # Re-order the labels and assign plane classes
     unique_labels, label_counts = np.unique(original_labels, return_counts=True)
     first_label_appear = np.zeros(len(unique_labels), )
     for i in range(len(unique_labels)):
         first_label_appear[i] = np.where(original_labels == unique_labels[i])[0][0]
-    if manual_oop_labels == []:
-        labels = pd.DataFrame({'orginal': original_labels})
-    else:
-        labels = pd.DataFrame({'manual': manual_oop_labels, 'orginal': original_labels})
+    labels = pd.DataFrame({'orginal': original_labels})
 
     # mapping kmean labels to string labels 
     mapping_dict = {}
@@ -410,7 +448,7 @@ def plot_embedding(embedding, labels, title='', legend='on', centroids=[]):
     scatter = plt.scatter(embedding[:, 0],embedding[:, 1],c=labels,s=5)
     plt.gca().set_aspect('equal', 'datalim')
     if len(centroids) > 0:
-        plt.scatter(centroids[:, 0], centroids[:, 1], c='k', s=100, marker='x', label='Cluster centroids')
+        plt.scatter(centroids[:, 0], centroids[:, 1], c='k', s=100, marker='x')
     if legend == 'on':
         plt.legend(handles=scatter.legend_elements(num=[k for k in label_classes.keys()])[0], 
                 labels=label_classes.values(),
