@@ -11,7 +11,7 @@ import xarray as xr
 from tqdm import tqdm
 
 class SessionLoader:
-    def __init__(self, base_path, sequence=None, output_path=None):
+    def __init__(self, base_path, session_id, subject_id, run_id, task_name, acqusition_id=0, output_path=None):
         """
         Initializes the SessionLoader object with the base path to the data and the sequence to load.
 
@@ -23,23 +23,29 @@ class SessionLoader:
         ValueError: If the base path or sequence does not exist.
         """
 
-        self.base_path = None
+        self.task_name = task_name
+        self.session_id = session_id
+        self.subject_id = subject_id
+        self.run_id = run_id
+        self.task_name = task_name
+        self.acqusition_id = acqusition_id
+        session_run = f'{session_id}/{subject_id}/run-{run_id}/' # current folder structure
+
         self.log_file_path = None
         self.task_event_file_path = None
         self.probe_event_file_path = None
         self.sequence_data_path = None
         self.sequence_folders = None
-        self.sequence = sequence
         self.raw_data_path = None
         self.beamformed_path = None
         self.power_doppler_path = None
         self.metadata_path = None
         self.fusi_path = None
         self.output_path = output_path
-        self.metadata = None
         self.n_frames = 0
 
         # check if paths exist
+        base_path = base_path + session_run
         if isinstance(base_path, str):
             base_path = Path(base_path)
         if base_path.exists():
@@ -47,6 +53,7 @@ class SessionLoader:
         else:
             raise ValueError("The specified base path does not exist.")
         
+
         # Find the log file path in the logs folder
         if not (self.base_path / 'logs').exists():
             print("The log file does not exist.")
@@ -75,12 +82,12 @@ class SessionLoader:
         acquisitions_path = self.base_path / 'acquisitions'
         if acquisitions_path.exists():
             self.sequence_folders = [d.name for d in acquisitions_path.iterdir() if d.is_dir()]
+        
+        # Load the sequence if provided
         if self.sequence_folders is None:
             print("No sequence is found in the given base path.")
-
-        # Load the sequence if provided
-        if sequence is not None:
-            self.load_acquisition_directories(sequence)
+        else:
+            self.load_acquisition_directories(sequence_index=self.acqusition_id)
             
     def load_acquisition_directories(self, sequence:str = None, sequence_index:int = None):
         """
@@ -218,7 +225,7 @@ class SessionLoader:
             # audio stimulus events specific
             if event_decoded == 'start_playing' or event_decoded == 'stop_playing':
                 event_decoded = 'stimulus_onset' if event_decoded == 'start_playing' else 'stimulus_offset'
-                task_type = 'audio_stimulus'
+                task_type = 'audio'
             else:
                 task_type = 'SSEP'
             
@@ -227,7 +234,7 @@ class SessionLoader:
                     stimulus_payload = json.loads(payload[i].decode('utf-8'))
                 except:
                     stimulus_payload = {'task': 'unknown'}
-                if task_type == 'audio_stimulus' and "stimulus" in stimulus_payload.keys():
+                if task_type == 'audio' and "stimulus" in stimulus_payload.keys():
                     stimulus = stimulus_payload["stimulus"][:-4]
                 elif "task" in stimulus_payload.keys():
                     stimulus = stimulus_payload["task"]
@@ -242,12 +249,15 @@ class SessionLoader:
                     'Stimulus': stimulus
                 })
 
+        if not self.task_name:
+            self.task_name = task_type
         self.behavior_df = pd.DataFrame(data)
+        self.task_events = self.extract_nilearn_compatible_events()
+        self.task_events.onset = self.task_events.onset + behavior_offset
 
-        self.events = self.extract_nilearn_compatible_events()
-        self.events.onset = self.events.onset + behavior_offset
-
-        return self.events
+        print('\nExtracted task events from task_event_file_path.')
+        print('Task name:', self.task_name)
+        return self.task_events
 
     def extract_nilearn_compatible_events(self):
         """
@@ -333,6 +343,8 @@ class SessionLoader:
 
     def filter_power_doppler_files(self, num_tissue_components=None):
 
+        print(f'Scanning power doppler files with number of tissue components = {num_tissue_components}')
+
         filenames = [f for f in os.listdir(self.power_doppler_path) if f.endswith('.h5')]
 
         if not filenames:
@@ -352,13 +364,15 @@ class SessionLoader:
             filtered_filenames = [f for f in filenames if f'num_tissue_components={closest_num_tissue_components}' in f]
             print(f"Warning: num_tissue_components={num_tissue_components} is not available. Using closest available value: {closest_num_tissue_components}")
         
-        print(f'Number of file scanned: {len(filtered_filenames)}/{len(filenames)}')
+        print(f'Number of file with the specified number of tissue components: {len(filtered_filenames)}/{len(filenames)}')
 
         # Call the function to match and add filenames
         self.match_and_add_fusi_filenames(filtered_filenames)
 
     def match_and_add_fusi_filenames(self, filtered_filenames):
         # Create a new column in probe_events to store the matched filenames from filtered_filenames
+
+        print(f'\nMatching and adding filenames to probe_events...')
         
         # Check if probe_events has been extracted
         if not hasattr(self, 'probe_events'):
@@ -379,7 +393,7 @@ class SessionLoader:
         
         # Check if every entry in 'fusi_file_name' column is populated
         if self.probe_events['fusi_file_name'].isnull().any():
-            print("Some entries in 'fusi_file_name' are not populated. See more ses.probe_events")
+            print("Some entries in 'fusi_file_name' are not populated. See more in 'self.probe_events'.")
         else:
             print("All entries in 'fusi_file_name' are properly populated.")
         self.n_frames = len(self.probe_events)
@@ -407,6 +421,10 @@ class SessionLoader:
             raise ValueError("One or more invalid frame indices")
 
         #  Load the data from the h5 files
+        if self.probe_events['fusi_file_name'].isnull().all():
+            print("'fusi_file name' is not properly populated. Please check the filenames.")
+            return None
+        
         self.probe_events['full_path'] = self.power_doppler_path / self.probe_events['fusi_file_name']
         dataset_on_disk = xr.open_mfdataset(
             paths=self.probe_events.loc[frame_indices]['full_path'],
@@ -457,12 +475,13 @@ class SessionLoader:
             full_filename = None
         
         # load NIFTI file in output_path
+        imgs = None
         if full_filename is None:
-            print(f"No filename is given. Looking for NIFTI file in {output_path}.")
+            print(f"\nNo filename is given. Looking for NIFTI file in {output_path}.")
             try:
                 for f in output_path.iterdir():
                     if f.is_file() and f.suffix == '.gz' and not f.name.startswith('._'):
-                        print(f'Loading NIFTI file: {f.name}')
+                        print(f'\nLoading NIFTI file: {f.name}')
                         img = nib.load(f)
                         imgs = img.get_fdata()
                         break
@@ -470,12 +489,10 @@ class SessionLoader:
                 print(f'No NIFTI file found in {output_path}.')
         elif full_filename.exists():
             img = nib.load(full_filename)
-            imgs = img.get_fdata()
-        else:
-            imgs = None
+            imgs = img.get_fdata()            
         
         assert imgs is not None, "No NIFTI file was found."
-        print(f'Loaded power doppler images stored in NIFTI. Shape: {imgs.shape}')
+        print(f'\nLoaded power doppler images stored in NIFTI. Shape: {imgs.shape}')
         
         # load metadata json if it exists
         if (output_path / 'metadata.json').exists():
@@ -483,19 +500,24 @@ class SessionLoader:
                 self.metadata = json.load(f)
                 print('Loaded metadata from metadata.json.')
 
-        assert self.metadata is not None, "No metadata json file found."
+        if not hasattr(self, 'metadata'):
+            print("No metadata json file found.")
         
         # load probe json if it exists
         if (output_path / 'probe_events.csv').exists():
             self.probe_events = pd.read_csv((output_path / 'probe_events.csv'), index_col='index')
             print('Loaded probe_events from probe_events.csv.')
+            self.n_frames = len(self.probe_events)
 
-        assert self.metadata is not None, "No metadata json file found."
-        
+        if not hasattr(self, 'probe_events'):
+            print("No probe_events file found.")
+
+        if self.n_frames == 0:
+            self.n_frames = imgs.shape[-1]
         
         return imgs
 
-    def save_to_nifti(self, data, output_path=None, filename='original.nii.gz'):
+    def save_to_nifti(self, data, output_path=None, filename_tag=''):
         """
         Saves the power doppler data to a NIFTI file.
         
@@ -516,9 +538,13 @@ class SessionLoader:
             try:
                 output_path.mkdir(parents=True, exist_ok=True)
             except PermissionError:
-                print('\nWarning: You DO NOT have write access to the base path. Please provide a different output path.')
+                print('\nWARNING: You DO NOT have write access to the base path. Please provide a different output path.')
                 output_path = None
-                
+        
+        if data is None:
+            print('\nNo data to save. \nExiting...')
+            return None
+        
         # affine to rescale and flip the images
         affine=np.array([[0.2, 0.,  0.,  0.],
                         [0.,  0.2, 0.,  0.],
@@ -534,18 +560,35 @@ class SessionLoader:
                                     affine=affine,
                                     header=hdr)
         # Create a NIFTI image
-        nifti_img.to_filename(output_path / filename)
-        print(f'\nSaved PD NIFTI as {filename}')
+        if filename_tag:
+            filename_tag = '_' + filename_tag
+        filename = f'sub-{self.subject_id}_task-{self.task_name}_run-{self.run_id}_acq-{self.acqusition_id}_pwdt{filename_tag}'
+        nifti_img.to_filename(output_path / (filename + '.nii.gz'))
+        print(f'Output location: {output_path}')
+        print(f'Saved PD NIFTI file as: {filename}.nii.gz')
+        
+        # save metadata as a json
+        self.save_meta_json(output_path, filename)
+        return filename
 
+    def save_meta_json(self, output_path, filename):
         # Save metadata from load_fusi_frames() as a json if it exists
         if self.metadata is not None:
-            with open(output_path / 'metadata.json', 'w') as f:
+            with open(output_path / (filename + '.json'), 'w') as f:
                 json.dump(self.metadata, f)
-        print('Saved metadata as metadata.json.')
-
+        print(f'Saved metadata file as: {filename}.json')
+    
+    def save_task_events(self, output_path=None):
         # save probe_events to csv
-        self.probe_events.to_csv(output_path / 'probe_events.csv', index=True, index_label='index')
-        print('Saved probe events as probe_events.csv.')
+        if output_path is not None and not output_path.exists():
+            try:
+                output_path.mkdir(parents=True, exist_ok=True)
+            except PermissionError:
+                print('\nWarning: You DO NOT have write access to the base path. Please provide a different output path.')
+                output_path = None
+                return
+        filename = f'sub-{self.subject_id}_task-{self.task_name}_run-{self.run_id}_acq-{self.acqusition_id}_events.tsv'
+        self.task_events.to_csv(output_path / filename, sep='\t', index=False)
         print(f'Output location: {output_path}')
+        print(f'Saved task events as:   {filename}')
 
-        return output_path / filename
