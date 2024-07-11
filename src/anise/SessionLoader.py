@@ -25,7 +25,6 @@ class SessionLoader:
         ValueError: If the base path or sequence does not exist.
         """
 
-        self.task_name = task_name
         self.session_id = session_id
         self.subject_id = subject_id
         self.run_id = run_id
@@ -38,6 +37,8 @@ class SessionLoader:
         elif 'Rat' in subject_id:
             # TODO: update path for rat data
             session_run = f'{session_id}/{subject_id}/functional_data/run-{run_id}/' # not handling plane now
+        else:
+            session_run = ''
 
         # Initialize the paths
         self.log_file_path = None
@@ -62,7 +63,6 @@ class SessionLoader:
         else:
             raise ValueError("The specified base path does not exist.")
         
-
         # Find the log file path in the logs folder
         if not (self.base_path / 'logs').exists():
             print("The log file does not exist.")
@@ -178,6 +178,9 @@ class SessionLoader:
         filenames = [f for f in os.listdir(self.power_doppler_path) if 
                      f.endswith('.h5') and not f.startswith('.')]
         
+        if not filenames:
+            raise ValueError("No power doppler files found in the specified directory.")
+        
         # Extract datetime from filenames and store data
         data = []
         for filename in filenames:
@@ -189,7 +192,8 @@ class SessionLoader:
                                                 format='%Y:%m:%dT%H:%M:%S:%f')
                 })
         
-        power_doppler_df=pd.DataFrame(data)
+        power_doppler_df = pd.DataFrame(data)
+
         # Sort the DataFrame by the 'Timestamp' column
         power_doppler_df = power_doppler_df.sort_values(by='Timestamp')
         
@@ -197,19 +201,20 @@ class SessionLoader:
         power_doppler_df.reset_index(drop=True, inplace=True)
 
         # Calculate the relative times since the first event
-        power_doppler_df['Experiment Time'] = (power_doppler_df['Timestamp'] - 
-                                               power_doppler_df['Timestamp'].iloc[0]).dt.total_seconds()
+        # power_doppler_df['Experiment Time'] = (power_doppler_df['Timestamp'] - 
+        #                                        power_doppler_df['Timestamp'].iloc[0]).dt.total_seconds()
 
-        #  format excluding the date and keeping the first digit of milliseconds
-        power_doppler_df['Readable Timestamp'] = power_doppler_df['Timestamp'].dt.strftime('%H:%M:%S.%f').str[:-5]
+        # #  format excluding the date and keeping the first digit of milliseconds
+        # power_doppler_df['Readable Timestamp'] = power_doppler_df['Timestamp'].dt.strftime('%H:%M:%S.%f').str[:-5]
 
         self.power_doppler_df = power_doppler_df
 
         return self.power_doppler_df
 
-    def extract_task_events(self, behavior_offset=0):
+    def extract_task_events(self):
         """
-        Reads an HDF5 file, extracts timestamps and event descriptions from the dataset, and organizes this information into a DataFrame.
+        Reads an HDF5 file, extracts timestamps and event descriptions from the dataset, 
+        and organizes this information into a DataFrame.
 
         Args:
         task_event_file_path (str): path to file
@@ -227,6 +232,8 @@ class SessionLoader:
             events = dataset['event']
             timestamps = dataset['timestamp']
             payload = dataset["payload"]
+            task_start = file.attrs['experiment_start_utc']
+            self.task_start = pd.to_datetime(task_start, format='ISO8601').replace(tzinfo=None)
 
         # Convert data to DataFrame
         data = []
@@ -257,17 +264,17 @@ class SessionLoader:
                 data.append({
                     'Event': event_decoded,
                     'Timestamp': t,
-                    'Stimulus': stimulus
+                    'Stimulus': stimulus,
+                    'global_time': self.task_start + timedelta(seconds=t),
                 })
 
         if not self.task_name:
             self.task_name = task_type
         self.behavior_df = pd.DataFrame(data)
         self.task_events = self.extract_nilearn_compatible_events()
-        self.task_events.onset = self.task_events.onset + behavior_offset
 
         print('\nExtracted task events from task_event_file_path.')
-        print('Task name:', self.task_name)
+        print('\nTask name:', self.task_name)
         return self.task_events
 
     def extract_nilearn_compatible_events(self):
@@ -301,9 +308,13 @@ class SessionLoader:
         stimulus_df = behavior_df[behavior_df['Event'] == 'stimulus_onset']
         conditions = stimulus_df['Stimulus'].tolist()
         onsets = stimulus_df['Timestamp'].tolist()
+        global_time_stamp = stimulus_df['global_time'].tolist()
 
         events = pd.DataFrame(
-            {"trial_type": conditions, "onset": onsets, "duration": stimulus_durations}
+            {"trial_type": conditions, 
+             "onset": onsets, 
+             "duration": stimulus_durations, 
+             "time_stamp": global_time_stamp}
         )
 
         return events
@@ -339,12 +350,23 @@ class SessionLoader:
                 # Extract the filename from the output_path
                 file_name = os.path.basename(payload_data["output_path"])
                 
+                global_time = re.search(r'\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{6}', file_name)
+                global_time = pd.to_datetime(global_time.group(0).replace('-', ':'), 
+                                                    format='%Y:%m:%dT%H:%M:%S:%f')
+                if i == 0:
+                    start_acqusition = global_time
+                
+                ensemble_start_time = (global_time - start_acqusition).total_seconds()
+                ensemble_end_time = timestamps[i]
+                
                 data.append({
                     'Event': events[i].decode('utf-8'),
                     'raw_file_name': file_name,
                     # 'raw_output_path': payload_data["output_path"],
                     'acquisition_idx': payload_data["acquisition_idx"],
-                    'time_stamp': timestamps[i] 
+                    'ensemble_start_time': ensemble_start_time,
+                    'ensemble_end_time': ensemble_end_time,
+                    'global_start_time': global_time,
                 })
 
         self.probe_events = pd.DataFrame(data)
@@ -352,34 +374,35 @@ class SessionLoader:
 
         return self.probe_events
 
-    def filter_power_doppler_files(self, num_tissue_components=None):
+    def find_unique_num_tissue_components_within_single_acqusition(self):
 
-        print(f'Scanning power doppler files with number of tissue components = {num_tissue_components}')
-
-        filenames = [f for f in os.listdir(self.power_doppler_path) if f.endswith('.h5')]
-
-        if not filenames:
-            raise ValueError("No power doppler files found in the specified directory.")
+        print('Scanning through power doppler folder...')
+        self.power_doppler_df = self.extract_power_doppler_info()
 
         # Extract unique values of num_tissue_components from filenames
-        unique_tissue_components = set(re.findall(r'num_tissue_components=(\d+)', ' '.join(filenames)))
-        if not num_tissue_components:
-            num_tissue_components = unique_tissue_components
-        # Check if the desired num_tissue_components is in the unique set of tissue components available in filenames
-        if str(num_tissue_components) in unique_tissue_components:
-            # Filter filenames to include only those with 'num_tissue_components=N' where N is the number of tissue components
-            filtered_filenames = [f for f in filenames if f'num_tissue_components={num_tissue_components}' in f]
-        else:
-            # Find the closest available num_tissue_components if the desired one is not available
-            closest_num_tissue_components = min(unique_tissue_components, key=lambda x: abs(int(x) - num_tissue_components))
-            filtered_filenames = [f for f in filenames if f'num_tissue_components={closest_num_tissue_components}' in f]
-            print(f"Warning: num_tissue_components={num_tissue_components} is not available. Using closest available value: {closest_num_tissue_components}")
+        self.n_tcs = set(re.findall(r'num_tissue_components=(\d+)', ' '.join(self.power_doppler_df['Filename'])))
+        print(f'Unique number of tissue components found: {self.n_tcs}')
+        return self.n_tcs
+    
+    def filter_power_doppler_files(self, num_tissue_components):
+        # given the number of tissue components, filter the filenames to include only those with 
+        # 'num_tissue_components=N' where N is the number of tissue components
+
+        num_tissue_components = int(num_tissue_components)
+
+        # Filter filenames to include only those with the specified number of tissue components
+        filtered_filenames = [f for f in self.power_doppler_df['Filename'] \
+                              if f'num_tissue_components={num_tissue_components}' in f]
         
-        print(f'Number of file with the specified number of tissue components: {len(filtered_filenames)}/{len(filenames)}')
+        if filtered_filenames:
+            print(f'Number of file with the specified number of tissue components: {len(filtered_filenames)}/{len(self.power_doppler_df)}')        
+        else:
+            print(f'No files found with num_tissue_components={num_tissue_components}.')    
 
         # Call the function to match and add filenames
-        self.match_and_add_fusi_filenames(filtered_filenames)
-
+        self.probe_events = self.match_and_add_fusi_filenames(filtered_filenames)
+        return self.probe_events
+    
     def match_and_add_fusi_filenames(self, filtered_filenames):
         # Create a new column in probe_events to store the matched filenames from filtered_filenames
 
@@ -401,7 +424,7 @@ class SessionLoader:
             # If there is a match, add the filename to the new column
             if matched_filenames:
                 self.probe_events.at[index, 'fusi_file_name'] = matched_filenames[0]
-        
+
         # Check if every entry in 'fusi_file_name' column is populated
         if self.probe_events['fusi_file_name'].isnull().any():
             print("Some entries in 'fusi_file_name' are not populated. See more in 'self.probe_events'.")
@@ -453,12 +476,14 @@ class SessionLoader:
         print("Loaded. releasing dataset_on_disk open-file")
         dataset_on_disk.close()
         
-        # replicate the data along the elevation dimension
-        N=2
-        frames_data_replicated = np.tile(fusi_data, (1, N, 1, 1))
-        print(f'\nLoaded in fusi_data with shape: {frames_data_replicated.shape}')
-
-        return frames_data_replicated
+        if fusi_data.shape[1] == 1:
+            N=2 # duplicate the data along the elevation dimension
+            frames_data_replicated = np.tile(fusi_data, (1, N, 1, 1))
+            print(f'\nLoaded in fusi_data with shape: {frames_data_replicated.shape}')
+            return frames_data_replicated
+        else:
+            print(f'\nLoaded in fusi_data with shape: {fusi_data.shape}')
+            return fusi_data
 
     def load_nifti(self, path_name=None, filename=None):
         # if NIFTI file is stored in a different location (e.g. local), provide the path
@@ -573,6 +598,19 @@ class SessionLoader:
 
     def save_sidecar_json(self, output_path, filename):
         # Save metadata from load_fusi_frames() as a json if it exists
+
+        if self.bmode_df is not None:
+            self.bmode_df = bmode_h5
+        bmode_h5 = next((pd_dir / '..' / 'beamformed').glob("[!.]*.h5"))
+        pwd_h5 = self.probe_events['full_path'][0]
+        time_stamps 
+        sidecar = utils.get_sidecar(bmode_h5, pwd_h5, time_stamps, n_tc,
+            task_name='light',
+            task_description='Blue LED, flashing at 5Hz',
+            institution_name='UCLA',
+            institution_address='760 Westwood Plaza, Los Angeles, CA 90095',
+            institutional_department_name='Department of Neurology')
+
         if self.metadata is not None:
             with open(output_path / f'{filename}_pwdt.json', 'w') as f:
                 f.write(json.dumps(self.sidecar, indent=4))

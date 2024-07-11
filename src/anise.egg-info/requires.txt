@@ -1,3 +1,7 @@
 numpy
 matplotlib
 nilearn
+antspyx
+SimpleITK
+imageio
+imageio-ffmpeg

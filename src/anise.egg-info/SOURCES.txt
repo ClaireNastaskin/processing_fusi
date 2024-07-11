@@ -1,5 +1,11 @@
+README.md
 pyproject.toml
+setup.py
+src/anise/SessionLoader.py
 src/anise/__init__.py
+src/anise/gui.py
+src/anise/image_utils.py
+src/anise/utils.py
 src/anise.egg-info/PKG-INFO
 src/anise.egg-info/SOURCES.txt
 src/anise.egg-info/dependency_links.txt

@@ -17,12 +17,6 @@ def get_sidecar(bmode_h5, pwd_h5, time_stamps, n_tc,
                 institution_address='1200 E California Blvd, Pasadena, CA 91125',
                 institutional_department_name='Brain Imaging Center'):
     
-    task_name='light',
-    task_description='Blue LED, flashing at 5Hz',
-    institution_name='UCLA',
-    institution_address='760 Westwood Plaza, Los Angeles, CA 90095',
-    institutional_department_name='Department of Neurology'
-
     metadata_bmode = h5todict(bmode_h5, path='/metadata')
     metadata_pwd = h5todict(pwd_h5)
 
@@ -94,8 +88,9 @@ def get_sidecar(bmode_h5, pwd_h5, time_stamps, n_tc,
     if 'scan_timing' in metadata_pwd['metadata']:
         acquire_start_datetime = metadata_pwd['metadata']['scan_timing']['acquire_start_datetime']
         ensemble_start_datetime = metadata_pwd['metadata']['scan_timing']['ensemble_start_datetime']
-    exceelseelpt:
-        acquire_start_datetime = 
+    else:
+        acquire_start_datetime = 0
+        ensemble_start_datetime = 0
 
     sidecar = dict(
         # Scanner and probe hardware
