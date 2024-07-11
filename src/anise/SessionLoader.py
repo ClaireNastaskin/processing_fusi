@@ -430,6 +430,9 @@ class SessionLoader:
             print("Some entries in 'fusi_file_name' are not populated. See more in 'self.probe_events'.")
         else:
             print("All entries in 'fusi_file_name' are properly populated.")
+
+        self.probe_events['full_path'] = self.power_doppler_path / self.probe_events['fusi_file_name']
+
         self.n_frames = len(self.probe_events)
         return self.probe_events
             
@@ -459,7 +462,6 @@ class SessionLoader:
             print("'fusi_file name' is not properly populated. Please check the filenames.")
             return None
         
-        self.probe_events['full_path'] = self.power_doppler_path / self.probe_events['fusi_file_name']
         dataset_on_disk = xr.open_mfdataset(
             paths=self.probe_events.loc[frame_indices]['full_path'],
             engine="h5netcdf",
@@ -599,22 +601,48 @@ class SessionLoader:
     def save_sidecar_json(self, output_path, filename):
         # Save metadata from load_fusi_frames() as a json if it exists
 
-        if self.bmode_df is not None:
+        # TODO: add bmode dataframe by reading in all the bmode files
+        if hasattr(self, 'bmode_df'):
             self.bmode_df = bmode_h5
-        bmode_h5 = next((pd_dir / '..' / 'beamformed').glob("[!.]*.h5"))
-        pwd_h5 = self.probe_events['full_path'][0]
-        time_stamps 
-        sidecar = utils.get_sidecar(bmode_h5, pwd_h5, time_stamps, n_tc,
-            task_name='light',
-            task_description='Blue LED, flashing at 5Hz',
-            institution_name='UCLA',
-            institution_address='760 Westwood Plaza, Los Angeles, CA 90095',
-            institutional_department_name='Department of Neurology')
+        
+        # now its any beamformed file not particularly the first
+        bmode_h5 = next(self.beamformed_path.glob("[!.]*.h5"))
 
-        if self.metadata is not None:
+        # get first power doppler file
+        pwd_h5 = self.probe_events['full_path'][0]
+        
+        time_stamps = self.probe_event['ensemble_start_time'] # in seconds
+        
+        n_tc = re.search(f'num_tissue_components=(\d+)', self.probe_events['fusi_file_name'][0])
+        n_tc = n_tc.group().replace('num_tissue_components=', '')
+
+        if 'UCLA' in self.subject_id:
+            self.sidecar = utils.get_sidecar(bmode_h5, 
+                                        pwd_h5, 
+                                        time_stamps, 
+                                        n_tc,
+                                        task_name='light',
+                                        task_description='Blue LED, flashing at 5Hz',
+                                        institution_name='UCLA',
+                                        institution_address='760 Westwood Plaza, Los Angeles, CA 90095',
+                                        institutional_department_name='Department of Neurology')
+        elif 'Rat' in self.subject_id:
+            self.sidecar = utils.get_sidecar(bmode_h5, 
+                                        pwd_h5, 
+                                        time_stamps, 
+                                        n_tc,
+                                        task_name='light',
+                                        task_description='Blue LED, flashing at 5Hz',
+                                        institution_name='Caltech',
+                                        institution_address='1200 E California Blvd, Pasadena, CA 91125',
+                                        institutional_department_name='Brain Imaging Center')
+        else:
+            self.sidecar = None
+
+        if self.sidecar is not None:
             with open(output_path / f'{filename}_pwdt.json', 'w') as f:
                 f.write(json.dumps(self.sidecar, indent=4))
-        print(f'Saved metadata file as: {filename}.json')
+        print(f'Saved sidecar json as: {filename}.json')
     
     def save_task_events(self, output_path=None):
         # save probe_events to csv
