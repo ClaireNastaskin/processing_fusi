@@ -128,8 +128,8 @@ class SessionLoader:
         self.list_acquisition_directories()
 
         # check if output_path is defined. Otherwise, define to save within base_path
-        if self.sequence_data_path is not None and self.output_path is None:
-            self.output_path = self.base_path / 'fUSI_corrected'
+        # if self.sequence_data_path is not None and self.output_path is None:
+        #     self.output_path = self.base_path / 'fUSI_corrected'
 
         self.print_paths()
 
@@ -239,7 +239,6 @@ class SessionLoader:
         data = []
         for i, t in enumerate(timestamps):
             event_decoded = events[i].decode('utf-8')
-            task_type = 'SSEP'
             # audio stimulus events specific
             if event_decoded == 'start_playing' or event_decoded == 'stop_playing':
                 event_decoded = 'stimulus_onset' if event_decoded == 'start_playing' else 'stimulus_offset'
@@ -268,8 +267,20 @@ class SessionLoader:
                     'global_time': self.task_start + timedelta(seconds=t),
                 })
 
-        if not self.task_name:
-            self.task_name = task_type
+        # TODO: add task name and description based on data saved in self.task_event_file_path
+        if task_type == 'audio' and 'tone' in stimulus:
+            task_description = 'Play low tone (110 Hz) vs high tone (1760 Hz) audio stimulus'
+            task_type = 'audio' + '_tone'
+        elif task_type == 'audio' and 'squeeze' in stimulus:
+            task_description = 'Play audio saying "squeeze left hand" vs reverse audio "squeeze left hand"'
+            task_type = 'audio' + '_speech'
+        else:
+            task_type = 'SSEP'
+            task_description = 'Left vs right side somatosensory evoked potential'
+
+        self.task_name = task_type
+        self.task_description = task_description
+
         self.behavior_df = pd.DataFrame(data)
         self.task_events = self.extract_nilearn_compatible_events()
 
@@ -388,16 +399,16 @@ class SessionLoader:
         # given the number of tissue components, filter the filenames to include only those with 
         # 'num_tissue_components=N' where N is the number of tissue components
 
-        num_tissue_components = int(num_tissue_components)
-
+        self.num_tissue_components = int(num_tissue_components)
+        
         # Filter filenames to include only those with the specified number of tissue components
         filtered_filenames = [f for f in self.power_doppler_df['Filename'] \
-                              if f'num_tissue_components={num_tissue_components}' in f]
+                              if f'num_tissue_components={self.num_tissue_components}' in f]
         
         if filtered_filenames:
-            print(f'Number of file with the specified number of tissue components: {len(filtered_filenames)}/{len(self.power_doppler_df)}')        
+            print(f'\nNumber of file with the specified number of tissue components: {len(filtered_filenames)}/{len(self.power_doppler_df)}')        
         else:
-            print(f'No files found with num_tissue_components={num_tissue_components}.')    
+            print(f'No files found with num_tissue_components={self.num_tissue_components}.')    
 
         # Call the function to match and add filenames
         self.probe_events = self.match_and_add_fusi_filenames(filtered_filenames)
@@ -409,8 +420,7 @@ class SessionLoader:
         print(f'\nMatching and adding filenames to probe_events...')
         
         # Check if probe_events has been extracted
-        if not hasattr(self, 'probe_events'):
-            self.extract_probe_events()
+        self.extract_probe_events()
 
         self.probe_events['fusi_file_name'] = None
 
@@ -586,10 +596,33 @@ class SessionLoader:
         nifti_img = nib.Nifti2Image(data, 
                                     affine=affine,
                                     header=hdr)
-        # Create a NIFTI image
+        
+        # get sidecar json metadata
+        self.get_sidecar_json()
+        
+        # save the nifti file
         if filename_tag:
             filename_tag = '_' + filename_tag
-        filename = f'sub-{self.subject_id}_task-{self.task_name}_run-{self.run_id}_acq-{self.acqusition_id}_pwdt{filename_tag}'
+        
+        filter = self.sidecar['ClutterFilters'][0]['FilterType'].lower()
+
+        if hasattr(self, 'plane'):
+            self.output_filename = (f'sub-{self.subject_id}_'
+                        f'task-{self.task_name}_'
+                        f'run-{self.run_id}_'
+                        f'acq-{self.acqusition_id}_'
+                        f'pose-{self.plane}_'
+                        f'proc-{filter}_{self.num_tissue_components}'
+                        )
+        else:          
+            self.output_filename = (f'sub-{self.subject_id}_'
+                        f'task-{self.task_name}_'
+                        f'run-{self.run_id}_'
+                        f'acq-{self.acqusition_id}_'
+                        f'proc-{filter}_{self.num_tissue_components}'
+                        )
+            
+        filename = self.output_filename + '_pwdt' + filename_tag
         nifti_img.to_filename(output_path / (filename + '.nii.gz'))
         print(f'Output location: {output_path}')
         print(f'Saved PD NIFTI file as: {filename}.nii.gz')
@@ -598,9 +631,7 @@ class SessionLoader:
         self.save_sidecar_json(output_path, filename)
         return output_path, filename
 
-    def save_sidecar_json(self, output_path, filename):
-        # Save metadata from load_fusi_frames() as a json if it exists
-
+    def get_sidecar_json(self):
         # TODO: add bmode dataframe by reading in all the bmode files
         if hasattr(self, 'bmode_df'):
             self.bmode_df = bmode_h5
@@ -611,36 +642,37 @@ class SessionLoader:
         # get first power doppler file
         pwd_h5 = self.probe_events['full_path'][0]
         
-        time_stamps = self.probe_event['ensemble_start_time'] # in seconds
+        time_stamps = self.probe_events['ensemble_start_time'] # in seconds
         
-        n_tc = re.search(f'num_tissue_components=(\d+)', self.probe_events['fusi_file_name'][0])
-        n_tc = n_tc.group().replace('num_tissue_components=', '')
-
+        n_tc = int(utils.get_param('num_tissue_components', str(self.probe_events['fusi_file_name'][0])))
+    
         if 'UCLA' in self.subject_id:
-            self.sidecar = utils.get_sidecar(bmode_h5, 
-                                        pwd_h5, 
-                                        time_stamps, 
-                                        n_tc,
-                                        task_name='light',
-                                        task_description='Blue LED, flashing at 5Hz',
-                                        institution_name='UCLA',
-                                        institution_address='760 Westwood Plaza, Los Angeles, CA 90095',
-                                        institutional_department_name='Department of Neurology')
+            institution_name = 'UCLA'
+            institution_address = '760 Westwood Plaza, Los Angeles, CA 90095'
+            institution_dept = 'Department of Neurology'
         elif 'Rat' in self.subject_id:
-            self.sidecar = utils.get_sidecar(bmode_h5, 
-                                        pwd_h5, 
-                                        time_stamps, 
-                                        n_tc,
-                                        task_name='light',
-                                        task_description='Blue LED, flashing at 5Hz',
-                                        institution_name='Caltech',
-                                        institution_address='1200 E California Blvd, Pasadena, CA 91125',
-                                        institutional_department_name='Brain Imaging Center')
+            institution_name = 'Caltech'
+            institution_address = '1200 E California Blvd, Pasadena, CA 91125'
+            institution_dept = 'Brain Imaging Center'
         else:
-            self.sidecar = None
+            institution_name = ''
+            institution_address = ''
+            institution_dept = ''
 
+        self.sidecar = utils.get_sidecar(bmode_h5, 
+                                         pwd_h5, 
+                                         time_stamps, 
+                                         n_tc,
+                                         task_name=self.task_name,
+                                         task_description=self.task_description,
+                                         institution_name=institution_name,
+                                         institution_address=institution_address,
+                                         institutional_department_name=institution_dept)
+
+    def save_sidecar_json(self, output_path, filename):
+        # Save metadata as a json if it exists
         if self.sidecar is not None:
-            with open(output_path / f'{filename}_pwdt.json', 'w') as f:
+            with open(output_path / f'{filename}.json', 'w') as f:
                 f.write(json.dumps(self.sidecar, indent=4))
         print(f'Saved sidecar json as: {filename}.json')
     
@@ -653,7 +685,7 @@ class SessionLoader:
                 print('\nWarning: You DO NOT have write access to the base path. Please provide a different output path.')
                 output_path = None
                 return
-        filename = f'sub-{self.subject_id}_task-{self.task_name}_run-{self.run_id}_acq-{self.acqusition_id}_events.tsv'
+        filename = self.output_filename + '_events.tsv'
         self.task_events.to_csv(output_path / filename, sep='\t', index=False)
         print(f'Output location: {output_path}')
         print(f'Saved task events as:   {filename}')
