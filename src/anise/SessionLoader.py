@@ -13,32 +13,32 @@ from silx.io.dictdump import h5todict
 import anise.utils as utils
 
 class SessionLoader:
-    def __init__(self, base_path, session_id='', subject_id='', run_id='', task_name='', acqusition_id=0, output_path=None):
+    def __init__(self, root, base_path, run: int = None, acqusition_id: int = 0, output_path=None):
         """
         Initializes the SessionLoader object with the base path to the data and the sequence to load.
 
         Args:
         base_path (str): The base path to the data directory.
-        sequence (str or int): The sequence to load. If None, the user will be prompted to select a sequence.
+        acqusition_id (int): The sequence to load. If None, the user will be prompted to select a sequence.
+        output_path (str or Path): The path to save the output files. If None, the files will be saved in the base path.
 
         Raises:
         ValueError: If the base path or sequence does not exist.
         """
 
-        self.session_id = session_id
-        self.subject_id = subject_id
-        self.run_id = run_id
-        self.task_name = task_name
-        self.acqusition_id = acqusition_id
+        
+        # self.session_id = session_id
+        # self.subject_id = subject_id
+        # self.task_name = task_name
         
         # check if subject_id is human or rat
-        if 'UCLA' in subject_id:
-            session_run = f'{session_id}/{subject_id}/run-{run_id}/' # current folder structure
-        elif 'Rat' in subject_id:
-            # TODO: update path for rat data
-            session_run = f'{session_id}/{subject_id}/functional_data/run-{run_id}/' # not handling plane now
-        else:
-            session_run = ''
+        # if 'UCLA' in subject_id:
+        #     session_run = f'{session_id}/{subject_id}/run-{run_id}/' # current folder structure
+        # elif 'Rat' in subject_id:
+        #     # TODO: update path for rat data
+        #     session_run = f'{session_id}/{subject_id}/functional_data/run-{run_id}/' # not handling plane now
+        # else:
+        #     session_run = ''
 
         # Initialize the paths
         self.log_file_path = None
@@ -53,14 +53,43 @@ class SessionLoader:
         self.fusi_path = None
         self.output_path = output_path
         self.n_frames = 0
+        self.acqusition_id = acqusition_id
 
         # check if paths exist
-        base_path = base_path + session_run
+        # base_path = base_path + session_run
         if isinstance(base_path, str):
             base_path = Path(base_path)
+        
+        # check if run is an integer or if it is in the base_path
+        run_in_base_path = utils.match_param('run', base_path)
+        if run_in_base_path is None and isinstance(run, int):
+            run = f'{run:02d}'
+            base_path = base_path / f'run-{run}'
+        else:
+            run = run_in_base_path
+        if run is not None:
+            self.run = run
+        else:
+            print("No run is provided as an argument or identified from base_path. Skipping...")
+            return
+        
+        # Human or rat subject
+        self.subject_id = [part for part in base_path.relative_to(root).parts if part.startswith("UCLA")][0]
+        if self.subject_id is None:
+            self.subject_id = [part for part in base_path.relative_to(root).parts if part.startswith("Rat")][0]
+        if self.subject_id is None:
+            raise ValueError('subject_id not found')
+
+        # get session date
+        self.session_id = re.search(r'\d{4}-\d{2}-\d{2}', str(base_path)).group(0)
+        if self.session_id is None:
+            raise ValueError('session_id not found')
+
+        # check if base_path exists
         if base_path.exists():
             self.base_path = base_path
         else:
+            print(base_path)
             raise ValueError("The specified base path does not exist.")
         
         # Find the log file path in the logs folder
@@ -609,7 +638,7 @@ class SessionLoader:
         if hasattr(self, 'plane'):
             self.output_filename = (f'sub-{self.subject_id}_'
                         f'task-{self.task_name}_'
-                        f'run-{self.run_id}_'
+                        f'run-{self.run}_'
                         f'acq-{self.acqusition_id}_'
                         f'pose-{self.plane}_'
                         f'proc-{filter}_{self.num_tissue_components}'
@@ -617,7 +646,7 @@ class SessionLoader:
         else:          
             self.output_filename = (f'sub-{self.subject_id}_'
                         f'task-{self.task_name}_'
-                        f'run-{self.run_id}_'
+                        f'run-{self.run}_'
                         f'acq-{self.acqusition_id}_'
                         f'proc-{filter}_{self.num_tissue_components}'
                         )
@@ -646,6 +675,7 @@ class SessionLoader:
         
         n_tc = int(utils.get_param('num_tissue_components', str(self.probe_events['fusi_file_name'][0])))
     
+
         if 'UCLA' in self.subject_id:
             institution_name = 'UCLA'
             institution_address = '760 Westwood Plaza, Los Angeles, CA 90095'

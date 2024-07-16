@@ -213,6 +213,7 @@ def match_param(param: str, path_dir: Path) -> str:
     val : str
         The value of the parameter.
     """
+    param = param.lower()
     matches = [part[len(param) + 1:] for part in
                path_dir.parts if part.lower().startswith(param)]
     if len(matches) == 1:
