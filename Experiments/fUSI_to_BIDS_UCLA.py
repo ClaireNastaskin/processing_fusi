@@ -76,7 +76,7 @@ def main(root: Path, base_path: Path, save_output_locally=False):
                     continue
             
                 #################################################################
-                #                Load task event and add offset                 #
+                #         Load task event and add timing offset                 #
                 #################################################################
 
                 if not hasattr(ses, 'task_events'):
