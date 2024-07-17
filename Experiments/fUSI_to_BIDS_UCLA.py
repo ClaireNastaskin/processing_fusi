@@ -37,8 +37,7 @@ def main(root: Path, base_path: Path, save_output_locally=False):
 
     # loop over runs
     for i, run in enumerate(runs):
-        if i != 2:
-            continue
+
         print('\n___________________________________________________________')
         print(f'\n\nProcessing: {run}\n')
         
@@ -76,6 +75,10 @@ def main(root: Path, base_path: Path, save_output_locally=False):
                     print(f'skipping this tissue component value: {n_tc}')
                     continue
             
+                #################################################################
+                #                Load task event and add offset                 #
+                #################################################################
+
                 if not hasattr(ses, 'task_events'):
                     ses.extract_task_events()
                     behavior_offset = (ses.probe_events['global_start_time'][0] - ses.task_start).total_seconds()
@@ -87,6 +90,10 @@ def main(root: Path, base_path: Path, save_output_locally=False):
                     # adjust task events onset time
                     ses.task_events['onset'] = ses.task_events['onset'] - behavior_offset
                     ses.task_events
+
+                #################################################################
+                #                       Load and save output                    #
+                #################################################################
 
                 fus_dir = ses.output_path / 'sourcedata' / f'sub-{ses.subject_id}' / f'ses-{ses.session_id}' / 'fus'
                 beh_dir = ses.output_path / 'sourcedata' / f'sub-{ses.subject_id}' / f'ses-{ses.session_id}' / 'beh'

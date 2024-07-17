@@ -26,20 +26,6 @@ class SessionLoader:
         ValueError: If the base path or sequence does not exist.
         """
 
-        
-        # self.session_id = session_id
-        # self.subject_id = subject_id
-        # self.task_name = task_name
-        
-        # check if subject_id is human or rat
-        # if 'UCLA' in subject_id:
-        #     session_run = f'{session_id}/{subject_id}/run-{run_id}/' # current folder structure
-        # elif 'Rat' in subject_id:
-        #     # TODO: update path for rat data
-        #     session_run = f'{session_id}/{subject_id}/functional_data/run-{run_id}/' # not handling plane now
-        # else:
-        #     session_run = ''
-
         # Initialize the paths
         self.log_file_path = None
         self.task_event_file_path = None
@@ -240,7 +226,7 @@ class SessionLoader:
 
         return self.power_doppler_df
 
-    def extract_task_events(self):
+    def extract_task_events(self, task_name='', task_description=''):
         """
         Reads an HDF5 file, extracts timestamps and event descriptions from the dataset, 
         and organizes this information into a DataFrame.
@@ -297,17 +283,23 @@ class SessionLoader:
                 })
 
         # TODO: add task name and description based on data saved in self.task_event_file_path
-        if task_type == 'audio' and 'tone' in stimulus:
-            task_description = 'Play low tone (110 Hz) vs high tone (1760 Hz) audio stimulus'
-            task_type = 'audio' + '_tone'
-        elif task_type == 'audio' and 'squeeze' in stimulus:
-            task_description = 'Play audio saying "squeeze left hand" vs reverse audio "squeeze left hand"'
-            task_type = 'audio' + '_speech'
-        else:
-            task_type = 'SSEP'
-            task_description = 'Left vs right side somatosensory evoked potential'
+        if not task_name and not task_description:
+            if 'UCLA' in self.subject_id:
+                if task_type == 'audio' and 'tone' in stimulus:
+                    task_description = 'Play low tone (110 Hz) vs high tone (1760 Hz) audio stimulus'
+                    task_name = 'audio' + '_tone'
+                elif task_type == 'audio' and 'squeeze' in stimulus:
+                    task_description = 'Play audio saying "squeeze left hand" vs reverse audio "squeeze left hand"'
+                    task_name = 'audio' + '_speech'
+                else:
+                    task_name = 'SSEP'
+                    task_description = 'Left vs right side somatosensory evoked potential'
+                
+            elif 'Rat' in self.subject_id:
+                task_name = 'light'
+                task_description = 'Blue LED flashing at 5Hz'
 
-        self.task_name = task_type
+        self.task_name = task_name
         self.task_description = task_description
 
         self.behavior_df = pd.DataFrame(data)
@@ -315,6 +307,7 @@ class SessionLoader:
 
         print('\nExtracted task events from task_event_file_path.')
         print('\nTask name:', self.task_name)
+        print('\nTask description:', self.task_description)
         return self.task_events
 
     def extract_nilearn_compatible_events(self):
