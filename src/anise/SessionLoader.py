@@ -18,8 +18,10 @@ class SessionLoader:
         Initializes the SessionLoader object with the base path to the data and the sequence to load.
 
         Args:
-        base_path (str): The base path to the data directory.
-        acqusition_id (int): The sequence to load. If None, the user will be prompted to select a sequence.
+        root (str or Path): The root directory before session name.
+        base_path (str or Path): The base path to the data directory.
+        run (int): The run number to load. If None, check if it's contained in base_path.
+        acqusition_id (int): The sequence to load. If None, the first sequence is selected.
         output_path (str or Path): The path to save the output files. If None, the files will be saved in the base path.
 
         Raises:
@@ -142,10 +144,6 @@ class SessionLoader:
         
         self.list_acquisition_directories()
 
-        # check if output_path is defined. Otherwise, define to save within base_path
-        # if self.sequence_data_path is not None and self.output_path is None:
-        #     self.output_path = self.base_path / 'fUSI_corrected'
-
         self.print_paths()
 
     def list_acquisition_directories(self):
@@ -214,13 +212,6 @@ class SessionLoader:
         
         # Reset the index of the DataFrame
         power_doppler_df.reset_index(drop=True, inplace=True)
-
-        # Calculate the relative times since the first event
-        # power_doppler_df['Experiment Time'] = (power_doppler_df['Timestamp'] - 
-        #                                        power_doppler_df['Timestamp'].iloc[0]).dt.total_seconds()
-
-        # #  format excluding the date and keeping the first digit of milliseconds
-        # power_doppler_df['Readable Timestamp'] = power_doppler_df['Timestamp'].dt.strftime('%H:%M:%S.%f').str[:-5]
 
         self.power_doppler_df = power_doppler_df
 
@@ -313,10 +304,12 @@ class SessionLoader:
     def extract_nilearn_compatible_events(self):
         """
         Analyzes a DataFrame containing behavioral event data to compute the durations of stimulus events.
-        It extracts the times when the stimulus was turned on and off, calculates the duration for each stimulus event, and returns a DataFrame with the stimulus conditions, onset times, and durations.
+        It extracts the times when the stimulus was turned on and off, calculates the duration for 
+        each stimulus event, and returns a DataFrame with the stimulus conditions, onset times, and durations.
         
         Args:
-        self.df.behavior (DataFrame): A DataFrame with columns for timestamps, event descriptions, and relative experiment times.
+        self.df.behavior (DataFrame): A DataFrame with columns for timestamps, event descriptions, 
+        and relative experiment times.
         
         Returns:
         DataFrame: A DataFrame containing the trial type, onset times, and durations of each stimulus event.
@@ -354,7 +347,8 @@ class SessionLoader:
 
     def extract_probe_events(self):
         """
-        Reads an HDF5 file, extracts timestamps and event descriptions from the dataset, and organizes this information into a DataFrame.
+        Reads an HDF5 file, extracts timestamps and event descriptions from the dataset, and 
+        organizes this information into a DataFrame.
 
         Args:
         probe_event_file_path (str): path to file
@@ -476,7 +470,7 @@ class SessionLoader:
         frame_indices (list of int): The indices of the frames to fetch.
         
         Returns:
-        np.array: The data from the specified frames in the h5 files, stacked along the last dimension.
+        imgs (np.array): The data from the specified frames in the h5 files, stacked along the last dimension.
         """
 
         # Check if probe_events has been extracted
@@ -520,6 +514,17 @@ class SessionLoader:
             return fusi_data
 
     def load_nifti(self, path_name=None, filename=None):
+        """
+        load the power doppler data from NIFTI file.
+        
+        Args:
+        path_name (str): The path to load the NIFTI file.
+        filename (str): The filename to load the NIFTI file.
+        
+        Returns:
+        imgs (np.array): The data from the specified frames in the h5 files, stacked along the last dimension.
+
+        """
         # if NIFTI file is stored in a different location (e.g. local), provide the path
         if path_name is not None:
             output_path = path_name
@@ -552,24 +557,6 @@ class SessionLoader:
         assert imgs is not None, "No NIFTI file was found."
         print(f'\nLoaded power doppler images stored in NIFTI. Shape: {imgs.shape}')
         
-        # load metadata json if it exists
-        if (output_path / 'metadata.json').exists():
-            with open(output_path / 'metadata.json') as f:
-                self.metadata = json.load(f)
-                print('Loaded metadata from metadata.json.')
-
-        if not hasattr(self, 'metadata'):
-            print("No metadata json file found.")
-        
-        # load probe json if it exists
-        if (output_path / 'probe_events.csv').exists():
-            self.probe_events = pd.read_csv((output_path / 'probe_events.csv'), index_col='index')
-            print('Loaded probe_events from probe_events.csv.')
-            self.n_frames = len(self.probe_events)
-
-        if not hasattr(self, 'probe_events'):
-            print("No probe_events file found.")
-
         if self.n_frames == 0:
             self.n_frames = imgs.shape[-1]
         
@@ -585,7 +572,8 @@ class SessionLoader:
         output_path (str): The path to save the NIFTI file. If None, the file will be saved in the output folder.
         
         Returns:
-        full path name: The path to the saved NIFTI file.
+        output_path: The path to the saved NIFTI file.
+        filename: The name of the saved NIFTI file ()
 
         """
         if output_path is None:
