@@ -92,7 +92,7 @@ def main(root: Path, base_path: Path, save_output_locally=False):
                     ses.task_events
 
                 #################################################################
-                #                       Load and save output                    #
+                #                          save outputs                         #
                 #################################################################
 
                 fus_dir = ses.output_path / 'sourcedata' / f'sub-{ses.subject_id}' / f'ses-{ses.session_id}' / 'fus'
