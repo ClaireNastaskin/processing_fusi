@@ -9,7 +9,7 @@ import anise.utils
 from anise.gui import MakeAnimation
 from anise.SessionLoader import SessionLoader
 from IPython.display import HTML, Video
-
+import argparse
 
 def main(root: Path, base_path: Path, save_output_locally=False):
     """
@@ -129,9 +129,36 @@ def main(root: Path, base_path: Path, save_output_locally=False):
                 print(f'saved movies to {file_path}')
 
 if __name__ == '__main__':
-    # Define root path and base path
-    root = Path.home() /'cassini/UCLA_collaboration/'
-    base_path = root / '2024-06-13/UCLA_006/ses-2024-06-13'
-    save_output_locally = False # save to root
+
+    # Define session base path from user
+    parser = argparse.ArgumentParser()
+
+    # Required positional arguments 
+    parser.add_argument("session_dir", type=str, 
+                        help="Path from session level up until run level, e.g. '2024-06-07/UCLA_006/'",
+                        default='',
+                        )
     
-    main(root, base_path, save_output_locally)
+    # Optional arguments
+    parser.add_argument("--root", type=str, 
+                        help="Root path dir up until session level, e.g. 'cassini/UCLA_collaboration/'",
+                        default='cassini/UCLA_collaboration/'
+                        )
+    
+    # Optional arguments
+    parser.add_argument("--local", type=bool, 
+                        help="If set True, output files will be saved to local 'Downloads/' folder. \
+                            When default to false, output folder will be in same as 'root'.",
+                        default=False)
+    
+    args = parser.parse_args()
+
+    root = Path.home() / args.root
+    base_path = root / args.session_dir
+    save_output_locally = args.local # save to root
+    
+    print(f'Data path is set to: {base_path}')
+    if save_output_locally:
+        print("Output is saved in local 'Downloads/' folder rather than in the same directory as the data is stored.")
+
+    # main(root, base_path, save_output_locally)
