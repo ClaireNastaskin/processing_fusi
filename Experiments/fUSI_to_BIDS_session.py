@@ -1,14 +1,7 @@
 import os
-import re
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-from datetime import datetime, timedelta
 from pathlib import Path
-import anise.utils
 from anise.gui import MakeAnimation
 from anise.SessionLoader import SessionLoader
-from IPython.display import HTML, Video
 import argparse
 
 def main(root: Path, base_path: Path, save_output_locally=False):
