@@ -15,6 +15,7 @@ def main(root: Path, base_path: Path, save_output_locally=False):
         root path to the data (e.g. '/cassini/UCLA_collaboration/')
     base_path : Path
         base path to the data (e.g. '/2024-06-13/UCLA_006/')
+        base path to the data (e.g. root / '2024-06-13/UCLA_006/')
     save_output_locally : bool, optional
          by default False: save output to root, otherwise local "Downloads" folder
     """
@@ -22,7 +23,7 @@ def main(root: Path, base_path: Path, save_output_locally=False):
     runs = os.listdir(base_path)
 
     # define output path to save data, plots, and videos (default: /fUSI_corrected)
-    if save_output_locally:
+    # define output path to save data, plots, and videos
         output_path = Path.home() / "Downloads" / "UCLA_fUSI_BIDS"  # save to user defined location e.g. (/Downloads folder)
     else:
         # default to save in the same root folder
@@ -128,12 +129,13 @@ if __name__ == '__main__':
 
     # Required positional arguments 
     parser.add_argument("session_dir", type=str, 
-                        help="Path from session level up until run level, e.g. '2024-06-07/UCLA_006/'",
+    parser.add_argument("session_dir", type=Path, 
                         default='',
-                        )
+                        required=True,
     
     # Optional arguments
     parser.add_argument("--root", type=str, 
+    parser.add_argument("--root", type=Path, 
                         help="Root path dir up until session level, e.g. 'cassini/UCLA_collaboration/'",
                         default='cassini/UCLA_collaboration/'
                         )
