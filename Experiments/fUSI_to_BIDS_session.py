@@ -22,8 +22,8 @@ def main(root: Path, base_path: Path, save_output_locally=False):
 
     runs = os.listdir(base_path)
 
-    # define output path to save data, plots, and videos (default: /fUSI_corrected)
     # define output path to save data, plots, and videos
+    if save_output_locally:
         output_path = Path.home() / "Downloads" / "UCLA_fUSI_BIDS"  # save to user defined location e.g. (/Downloads folder)
     else:
         # default to save in the same root folder
@@ -65,7 +65,7 @@ def main(root: Path, base_path: Path, save_output_locally=False):
                     
                     # load fusi data
                     fusi_data = ses.load_fusi_frames()
-                except:
+                except ValueError:
                     print(f'skipping this tissue component value: {n_tc}')
                     continue
             
@@ -73,7 +73,7 @@ def main(root: Path, base_path: Path, save_output_locally=False):
                 #         Load task event and add timing offset                 #
                 #################################################################
 
-                if not hasattr(ses, 'task_events'):
+                if ses.task_events is not None:
                     ses.extract_task_events()
                     behavior_offset = (ses.probe_events['global_start_time'][0] - ses.task_start).total_seconds()
                     print('\n\tpwd ensemble start time:', ses.probe_events['global_start_time'][0])
@@ -128,23 +128,21 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # Required positional arguments 
-    parser.add_argument("session_dir", type=str, 
-    parser.add_argument("session_dir", type=Path, 
-                        default='',
-                        required=True,
+    parser.add_argument("session_dir", type=Path,
+                        )
     
     # Optional arguments
-    parser.add_argument("--root", type=str, 
     parser.add_argument("--root", type=Path, 
                         help="Root path dir up until session level, e.g. 'cassini/UCLA_collaboration/'",
                         default='cassini/UCLA_collaboration/'
                         )
     
     # Optional arguments
-    parser.add_argument("--local", type=bool, 
+    parser.add_argument("--local",
                         help="If set True, output files will be saved to local 'Downloads/' folder. \
                             When default to false, output folder will be in same as 'root'.",
-                        default=False)
+                        action='store_true',
+                        )
     
     args = parser.parse_args()
 

@@ -40,8 +40,14 @@ class SessionLoader:
         self.metadata_path = None
         self.fusi_path = None
         self.output_path = output_path
+
         self.n_frames = 0
+        self.plane = None
         self.acqusition_id = acqusition_id
+        self.task_events = None
+        self.probe_events = None
+        self.bmode_df = None
+        self.power_doppler_df = None
 
         # check if paths exist
         # base_path = base_path + session_run
@@ -58,8 +64,7 @@ class SessionLoader:
         if run is not None:
             self.run = run
         else:
-            print("No run is provided as an argument or identified from base_path. Skipping...")
-            return
+            raise ValueError("No run is provided as an argument or identified from base_path. Skipping...")
         
         # Human or rat subject
         self.subject_id = [part for part in base_path.relative_to(root).parts if part.startswith("UCLA")][0]
@@ -67,6 +72,9 @@ class SessionLoader:
             self.subject_id = [part for part in base_path.relative_to(root).parts if part.startswith("Rat")][0]
         if self.subject_id is None:
             raise ValueError('subject_id not found')
+        
+        # get plane (optional)
+        self.plane = [part for part in base_path.relative_to(root).parts if part.startswith("plane")][0]
 
         # get session date
         self.session_id = re.search(r'\d{4}-\d{2}-\d{2}', str(base_path)).group(0)
@@ -474,7 +482,7 @@ class SessionLoader:
         """
 
         # Check if probe_events has been extracted
-        if not hasattr(self, 'probe_events'):
+        if self.probe_events is None:
             self.extract_probe_events()
 
         # Check if all frame_indices are valid
@@ -616,7 +624,7 @@ class SessionLoader:
         
         filter = self.sidecar['ClutterFilters'][0]['FilterType'].lower()
 
-        if hasattr(self, 'plane'):
+        if self.plane is not None:
             self.output_filename = (f'sub-{self.subject_id}_'
                         f'task-{self.task_name}_'
                         f'run-{self.run}_'
@@ -643,8 +651,8 @@ class SessionLoader:
 
     def get_sidecar_json(self):
         # TODO: add bmode dataframe by reading in all the bmode files
-        if hasattr(self, 'bmode_df'):
-            self.bmode_df = bmode_h5
+        # if self.bmode_df is None:
+        #     extract_bmode()
         
         # now its any beamformed file not particularly the first
         bmode_h5 = next(self.beamformed_path.glob("[!.]*.h5"))
