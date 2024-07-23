@@ -403,6 +403,22 @@ def boxcar_smooth(data, window_size):
         smoothed_data[..., t] = np.mean(data[..., start_index:end_index], axis=-1)
     return smoothed_data
 
+def check_weird_transform(extra, max_translation_limit=10, angle_limit=0.1):
+    # check if the transformation is not smooth based on the difference between consecutive frames
+    outlier_x = extra['translation_x'].diff().abs().max()
+    outlier_y = extra['translation_y'].diff().abs().max()
+    outlier_a = extra['rotation'].diff().abs().max() 
+    if outlier_x > max_translation_limit: # pixel
+        print(f'Weird transformation detected with {outlier_x:.1f} pixel difference along the x axis.')
+        return True
+    if outlier_y > max_translation_limit: # pixel
+        print(f'Weird transformation detected with {outlier_y:.1f} pixel difference along the y axis.')
+        return True
+    if outlier_a > angle_limit: # angle (radian)
+        print(f'Weird transformation detected with {outlier_a:.1f} radian in rotation.')
+        return True
+    return False
+
 # cluster related
 def get_consecutive_labels_counts(labels):
     labels_tmp = np.append(labels, 0.01)
