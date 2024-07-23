@@ -219,3 +219,102 @@ def match_param(param: str, path_dir: Path) -> str:
     if len(matches) == 1:
         return matches[0]
     return
+
+def get_BIDS_derivative_dir(base_path):
+    # Get the output directory for registration and GLM
+
+    register_dir = glm_dir = Path('')
+    for part in base_path.parts:
+        if part != 'sourcedata':
+            register_dir = register_dir / part
+            glm_dir = glm_dir / part
+        else:
+            register_dir = register_dir / 'derivatives' / 'registration'
+            glm_dir = glm_dir / 'derivatives' / 'glm'
+        
+    if not register_dir.exists():
+        register_dir.mkdir(parents=True, exist_ok=True)
+    if not glm_dir.exists():
+        glm_dir.mkdir(parents=True, exist_ok=True)
+
+    return register_dir, glm_dir
+
+def get_run_files_from_BIDS(base_path, run=None):
+    fus_dir = base_path / 'fus'
+    filenames = []
+    if run is None:
+        filenames = [f.name for f in fus_dir.iterdir() if f.is_file() and f.suffix == '.gz']
+    else:
+        if isinstance(run, int):
+            run = f'{run:02d}'
+        filenames = [f.name for f in fus_dir.iterdir() if f.is_file() and f.suffix == '.gz' and run in f.name]
+    print(f'Found {len(filenames)} files:')
+    for f in filenames: 
+        print('\t', f)
+    return filenames
+
+def load_data_from_BIDS(base_path, filename):
+
+    # Load the NIFTI file
+    fus_dir = base_path / 'fus'
+    beh_dir = base_path / 'beh'
+    nifti_data = nib.load(fus_dir / filename)
+    print(f'\nLoaded NIFTI file: {filename}')
+
+    # Load the metadata
+    metadata_fname = filename.replace('.nii.gz', '.json')
+    with open(fus_dir / metadata_fname, 'r') as file:
+        metadata = json.load(file)
+        print('Loaded json: \t  ', metadata_fname)
+
+    # Load the events
+    event_fname = filename.replace('pwdt.nii.gz', 'events.tsv')
+    events = pd.read_csv(beh_dir / event_fname, sep='\t')
+    print('Loaded events: \t  ', event_fname)
+
+    return nifti_data, metadata, events
+
+### Save functions
+def save_nifti_to_BIDS(output_path, data, filename=None, filename_tag='register'):
+    """
+    Saves the power doppler data to a NIFTI file.
+    
+    Args:
+    data (np.array): The power doppler data to save.
+    output_path (str): The path to save the NIFTI file. If None, the file will be saved in the output folder.
+    filename: The name of the saved NIFTI file ()
+    
+    Returns:
+    filename: The name of the saved NIFTI file ()
+
+    """
+    if output_path is not None and not output_path.exists():
+        output_path.mkdir(parents=True, exist_ok=True)
+    
+    if data is None:
+        print('\nNo data to save. \nExiting...')
+        return None
+    
+    # affine to rescale and flip the images
+    affine=np.array([[0.2, 0.,  0.,  0.],
+                    [0.,  0.2, 0.,  0.],
+                    [0.,  0., -0.2, 0.],
+                    [0.,  0.,  0.,  0.]])
+
+    # Get the header
+    hdr = nib.Nifti2Header()
+    hdr['descrip'] = '"lateral", "elevation", "depth", "time"'
+
+    # define the nifti image
+    nifti_img = nib.Nifti2Image(data, 
+                                affine=affine,
+                                header=hdr)
+    
+    # save the nifti file
+    if filename_tag:
+        filename = filename + '_' + filename_tag
+    nifti_img.to_filename(output_path / (filename + '.nii.gz'))
+    print(f'Output location: {output_path}')
+    print(f'Saved PD NIFTI file as: {filename}.nii.gz')
+    
+    return filename
