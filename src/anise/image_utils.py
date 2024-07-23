@@ -44,6 +44,7 @@ def show_imgs(imgs, frame_indices=np.arange(10), timestamps=None, labels=None, f
             ax.remove()
     plt.tight_layout(pad=0.3, w_pad=0.1)
     plt.show()
+    return fig, axs
 
 def plot_pd_intensity_over_time(imgs, y_lim=[], outlier_threshold=0):
     fig, ax = plt.subplots()
@@ -68,8 +69,10 @@ def plot_pd_intensity_over_time(imgs, y_lim=[], outlier_threshold=0):
         
         # plot the median intensity and the outliers
         plt.hlines(median_intensity, 0, len(doppler_intensity),color='k', label='Median Intensity')
-        plt.hlines(median_intensity - outlier_threshold, 0, len(doppler_intensity), color='k', linestyle='--')
-        plt.hlines(median_intensity + outlier_threshold, 0, len(doppler_intensity), color='k', linestyle='--', label='threshold')
+        plt.hlines(median_intensity - outlier_threshold, 0, len(doppler_intensity), 
+        color='k', linestyle='--')
+        plt.hlines(median_intensity + outlier_threshold, 0, len(doppler_intensity), 
+        color='k', linestyle='--', label='threshold')
         plt.scatter(outlier_frames, 
                     doppler_intensity[outlier_intensity_frames], 
                     color='r', label='Outlier indices')
@@ -77,14 +80,15 @@ def plot_pd_intensity_over_time(imgs, y_lim=[], outlier_threshold=0):
     else:
         outlier_intensity_frames = []
     plt.show()
-    return doppler_intensity, outlier_intensity_frames, fig
+    return doppler_intensity, outlier_intensity_frames, fig, ax
 
 def phase_corr_translation(im1, im2):
     
     """ performs FFT phase correlation to find optimal translation between two images
 
     Kuglin, C. D. and Hines, D. C., 1975. The Phase Correlation Image Alignment Method. 
-    Proceeding of IEEE International Conference on Cybernetics and Society, pp. 163-165, New York, NY, USA.
+    Proceeding of IEEE International Conference on Cybernetics and Society, pp. 163-165, New York, 
+    NY, USA.
 
     Args:
         im1, im2 : 2D numpy arrays : image 2 to be aligned to image 1
@@ -148,6 +152,7 @@ def pairwise_cross_correlation_variance(imgs):
             ir_avg[i,j] = ir.var()
     return ir_avg
 
+# registration related
 def get_threshold_image(imgs, threshold=.5):
 
     # Apply thresholding to isolate vessels
@@ -240,7 +245,8 @@ def register_sitk(images, metric='correlation', ref_index=0):
                       'after_similarity': similarity_metric_after,
                       })
 
-        resampled_image = sitk.Resample(moving_image, fixed_image, final_transform, sitk.sitkLinear, 0.0, moving_image.GetPixelID())
+        resampled_image = sitk.Resample(moving_image, fixed_image, final_transform, sitk.sitkLinear, 
+                                        0.0, moving_image.GetPixelID())
         resampled_image = sitk.GetArrayFromImage(resampled_image)
         transformed_images.append(resampled_image)
 
@@ -250,9 +256,12 @@ def register_sitk(images, metric='correlation', ref_index=0):
     return registered_array, extra_df
 
 def register_ants(images, type_of_transform='Rigid', ref_index=0, crop_border=0):
-    if isinstance(images, np.ndarray):
-        fixed_image = ants.from_numpy(images[..., ref_index])
-        transformed_images = []
+
+    # use image nearest to centroid as the reference frame
+    print(f'Reference frame for registration is: {ref_index}')
+    fixed_image = ants.from_numpy(images[..., ref_index])
+    transformed_images = []
+
     # Initialize transformations array with zero for the first image (identity transformation)
     extra = []
     for i in range(images.shape[-1]):
@@ -303,22 +312,27 @@ def register_ants(images, type_of_transform='Rigid', ref_index=0, crop_border=0)
 
     return registered_images, extra_df
 
-def crop_images(images, crop_border=0):
+def crop_images(images, crop_border):
+    if isinstance(crop_border, int):
+        x_l = x_r = y_l = y_r = crop_border
+    elif isinstance(crop_border, list):
+        x_l, x_r, y_l, y_r = crop_border
     transformed_images = []
     for i in range(images.shape[-1]):
         image = images[..., i]
         lateral, depth = image.shape[0], image.shape[1]
-        cropped_image = image[crop_border:lateral - crop_border, crop_border:depth - crop_border]
+        cropped_image = image[x_l:lateral - x_r, y_l:depth - y_r]
         transformed_images.append(cropped_image)
     return np.stack(transformed_images, axis=-1)
 
-def plot_transform_params(extra, oop_labels=[], metric_name='', in_plane_indices=[], annotate_ref_frame: int = None):
+def plot_transform_params(extra, oop_labels=[], metric_name='', in_plane_indices=[], 
+                            annotate_ref_frame: int = None):
     # Create a new figure with three subplots
     # similarity metric value
     # translation after registration
     # rotation after registration
 
-    if not in_plane_indices:
+    if not any(in_plane_indices):
         in_plane_indices = range(len(extra))
     fig, axs = plt.subplots(3, 1,figsize=(8,8))
 
@@ -337,7 +351,8 @@ def plot_transform_params(extra, oop_labels=[], metric_name='', in_plane_indices
 
     def add_annotation_ref_frame(ax, annotate_ref_frame, y):
         if annotate_ref_frame is not None:
-            ax.scatter(annotate_ref_frame, y[annotate_ref_frame], color='magenta', label=f'reference frames: {annotate_ref_frame}')
+            ax.scatter(annotate_ref_frame, y[annotate_ref_frame], color='magenta', 
+                        label=f'reference frames: {annotate_ref_frame}')
 
     ax = axs[0]
     ax.plot(in_plane_indices, extra['initial_similarity'], label='initial_similarity')
@@ -376,9 +391,19 @@ def plot_transform_params(extra, oop_labels=[], metric_name='', in_plane_indices
     ax.legend()
     ax.grid(True)
     plt.tight_layout()
+    return fig, axs, improvement
 
+def boxcar_smooth(data, window_size):
+    # smooth across frames with a boxcar moving average
+    assert window_size>0, "Window size must be greater than 0"
+    smoothed_data = np.copy(data)
+    for t in range(data.shape[-1]):
+        start_index = max(0, t - window_size // 2)
+        end_index = min(data.shape[-1], t + window_size // 2 + 1)
+        smoothed_data[..., t] = np.mean(data[..., start_index:end_index], axis=-1)
+    return smoothed_data
 
-# cluster stuff
+# cluster related
 def get_consecutive_labels_counts(labels):
     labels_tmp = np.append(labels, 0.01)
     summary_count = {}
@@ -398,6 +423,9 @@ def get_consecutive_labels_counts(labels):
     return summary_count
 
 def remap_cluster_to_labels(original_labels):
+    if np.any(original_labels==-1):
+        return original_labels
+    
     # Re-order the labels and assign plane classes
     unique_labels, label_counts = np.unique(original_labels, return_counts=True)
     first_label_appear = np.zeros(len(unique_labels), )
@@ -432,11 +460,27 @@ def remap_cluster_to_labels(original_labels):
     labels['remap_kmean'] = labels['class'].map(mapping_dict)
     pred_labels = labels['remap_kmean'].values
 
-    return pred_labels, labels
+    return pred_labels
 
-def plot_embedding(embedding, labels, title='', legend='on', centroids=[]):
-    unique_labels = np.unique(labels)
+def plot_embedding(embedding, labels=None, title='', legend='on', centroids=[]):
+    if labels is None:
+        # labels not given, assign all to in-plane
+        labels = np.zeros((embedding.shape[0], ), dtype=np.int32)
+        legend = 'off'
+    else:
+        order = np.argsort(labels)
+        labels = labels[order]
+        embedding = embedding[order]
+
+    colors = ['g', 'c', 'm', 'y', 'k', 'b']
     label_classes = {}
+    unique_labels = np.unique(labels)
+
+    if len(unique_labels) == 1:
+        colors = ['g'] # all in-plane
+    elif -1 in unique_labels:
+        colors = ['r'] + colors # discard plane label with red
+
     for l in unique_labels:
         if l == 0:
             label_classes[l] = 'in-plane'
@@ -444,16 +488,16 @@ def plot_embedding(embedding, labels, title='', legend='on', centroids=[]):
             label_classes[l] = 'discard out-of-plane ' + str(l)
         elif l > 0:
             label_classes[l] = 'new out-of-plane ' + str(l)
-    plt.figure(figsize=(4,3))
-    scatter = plt.scatter(embedding[:, 0],embedding[:, 1],c=labels,s=5)
+    fig, ax = plt.subplots(figsize=(4,3))
+    ax.set_prop_cycle('color', colors)
+    for l in unique_labels:
+        ax.scatter(embedding[labels == l, 0],embedding[labels == l, 1],s=5,label=label_classes[l])
     plt.gca().set_aspect('equal', 'datalim')
     if len(centroids) > 0:
         plt.scatter(centroids[:, 0], centroids[:, 1], c='k', s=100, marker='x')
     if legend == 'on':
-        plt.legend(handles=scatter.legend_elements(num=[k for k in label_classes.keys()])[0], 
-                labels=label_classes.values(),
-                loc='lower left', bbox_to_anchor=(1.02,0), ncol=1)
+        fig.legend(loc='lower left', bbox_to_anchor=(1.02,0), ncol=1)
     plt.title(title)
     plt.xticks([])
     plt.yticks([])
-
+    return fig, ax
