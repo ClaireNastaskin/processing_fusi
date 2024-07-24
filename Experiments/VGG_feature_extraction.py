@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-import anise.image_utils as image_utils
+import anise.motion_utils as motion_utils
 import anise.utils as utils
 
 from sklearn.decomposition import PCA

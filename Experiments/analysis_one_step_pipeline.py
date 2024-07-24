@@ -13,16 +13,13 @@ import pandas as pd
 from datetime import datetime, timedelta
 from IPython.display import HTML, Video
 from anise.gui import *
-import anise.image_utils as image_utils
+import anise.motion_utils as motion_utils
 import anise.utils as utils
 
 import nibabel as nib
-from sklearn.metrics import pairwise_distances
-from sklearn.cluster import DBSCAN
 
-
-# %% [markdown]
-# # Load data from NIFTI
+import neptune
+from neptune.types import File
 
 # %%
 #################################################################
@@ -34,7 +31,7 @@ from sklearn.cluster import DBSCAN
 
 base_path = Path.home() / 'Downloads/UCLA_fUSI_BIDS/sourcedata/sub-UCLA_006/ses-2024-06-13'
 
-run = 6
+run = 5
 
 log_neptune = True
 
@@ -48,22 +45,19 @@ filenames = utils.get_run_files_from_BIDS(base_path, run_folder)
 # for filename in filenames:
 filename = filenames[0]
 nifti_data, metadata, task_events = utils.load_data_from_BIDS(base_path, filename)
+
 fusi_data = nifti_data.get_fdata()
-n_frames = fusi_data.shape[-1]
 filename = filename.replace('.nii.gz', '')
 folder_tag = filename[re.search(run_folder, filename).start():-5]
 
 reg_plot_dir = register_dir / 'plots' / folder_tag
 reg_plot_dir.mkdir(parents=True, exist_ok=True)
 
-task_events
-
 # %%
 # Define the list of params to be used in this analysis
 
 run = {}
 if log_neptune:
-    import neptune
     run = neptune.init_run(
     project="forest-neurotech/auto-registration-glm",
     name=filename,
@@ -72,9 +66,9 @@ if log_neptune:
 # clustering parameters
 param_c = dict(
     outlier_threshold = 500, # pwd intensity
-    dim_red_method = 'VGG', # 'PCA' or 'UMAP' or 'tSNE' or 'VGG'
-    pca_n_components = 100, # not applied for VGG
-    perplexity = min(200, n_frames - 1), # specific for tSNE
+    dim_red_method = 'PCA', # 'PCA' or 'UMAP' or 'tSNE' or 'VGG'
+    pca_n_components = min(100, fusi_data.shape[-1] - 1), # not applied for VGG
+    perplexity = min(200, fusi_data.shape[-1] - 1), # specific for tSNE
     DBSCAN_eps = 1, # smaller eps, more clusters
     )
 
@@ -104,252 +98,96 @@ param_glm =  dict(
 ################################################
 
 # find and confirm if there's any outlier frames that should be removed e.g. high brightness or noise
-y_lim = []
 doppler_intensity_per_frame, outlier_intensity_frames, fig, ax = \
-    image_utils.plot_pd_intensity_over_time(fusi_data, 
-                                            y_lim=y_lim,
+    motion_utils.plot_pd_intensity_over_time(fusi_data,
                                             outlier_threshold=param_c["outlier_threshold"])
-
+plt.show(block=False)
 fig.savefig(reg_plot_dir / 'doppler_intensity_over_time.png', dpi=300, bbox_inches='tight')
 plt.close(fig)
 # %%
 #############################################################################
-#            If needed: identify  any out-of-plan images                    #
+#             If needed: identify any out-of-plan images                    #
 #############################################################################
 
-dim_red_method = param_c["dim_red_method"] # 'VGG' or 'PCA' or 'UMAP' or 'tSNE'
-pca_n_components = param_c["pca_n_components"]
 # elevation
 el = 0
-
-print(f'Using {dim_red_method} for clustering and visualization...')
-
-if dim_red_method == 'VGG':
-    # Apply VGG to extract features, then PCA on the features
-    from VGG_feature_extraction import VGG_PCA
-    embedding = VGG_PCA(fusi_data, pca_n_components=2)
-else:
-    # use the thresholded images 
-    threshold_imgs, density = image_utils.get_threshold_image(fusi_data[:, el], threshold=0.5)
-    print('Applied binary masking to get thresholded images')
-    image_utils.show_imgs(threshold_imgs, np.arange(20), fig_height=1.1, title='off')
-    imgs_flatten = threshold_imgs.reshape(-1, threshold_imgs.shape[-1]).T
-    # imgs_flatten = fusi_data.reshape(-1, fusi_data.shape[-1]).T
-
-    from sklearn.decomposition import PCA
-    pca=PCA(n_components=pca_n_components)
-
-    # Reduce number of dimension
-    lowd = pca.fit_transform(imgs_flatten)
-    print(f'After PCA shape: {lowd.shape}')
-    explained_variance = pca.explained_variance_ratio_
-    print(f'Explain variance sum of top {pca_n_components} components: \
-          {sum(explained_variance).round(3)*100}%')
-
-    if dim_red_method == 'PCA':
-        ### Visualize with PCA
-        embedding = lowd[:,:2]
-        
-    elif dim_red_method == 'UMAP':
-        import umap
-        ### Visualize PCA projection with UMAP
-        reducer = umap.UMAP(random_state=42, metric='cosine')
-        embedding = reducer.fit_transform(lowd)
-
-    elif dim_red_method == 'tSNE':
-        from sklearn.manifold import TSNE
-        ### Visualize PCA projection with tSNE
-        tsne = TSNE(n_components=2, verbose=0, 
-                    perplexity=param_c["perplexity"], max_iter=300, random_state=42)
-        embedding = tsne.fit_transform(lowd)
-
-# Visualize top 2 embedding space
-image_utils.plot_embedding(embedding, title=(dim_red_method + ' projection'))
-
-# %% [markdown]
-# ## Use DBSCAN for clustering planes
-# DBSCAN (Density-Based Spatial Clustering of Applications with Noise): This algorithm excels at finding clusters of various shapes and identifying outliers. It focuses on data point density, grouping points close together in high-density regions and separating them from areas with lower density. 
-# 
-# DBSCAN only requires two parameters: 
-# - a distance threshold (`epsilon`) 
-# - a minimum number of points in a cluster (`min_samples`). 
-# 
-# It's robust to outliers and doesn't require pre-defining the number of clusters, making it a good choice for exploratory data analysis.
-# 
-# https://scikit-learn.org/stable/auto_examples/cluster/plot_dbscan.html#sphx-glr-auto-examples-cluster-plot-dbscan-py
-
-# %%
-def dbscan_clustering(embedding, starting_eps=1):
-    # normalize the embedding
-    embedding = embedding / np.std(embedding, axis=0)
-    n_clusters = 5
-    n_noise = embedding.shape[0]
-    eps = starting_eps
-    while n_clusters > 4 or n_noise > embedding.shape[0] / 2:
-        print(f'Using DBSCAN with eps = {eps}\n')
-        db = DBSCAN(eps=eps).fit(embedding)
-        labels = db.labels_
-
-        # Number of clusters in labels, ignoring noise if present.
-        n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
-        n_noise = list(labels).count(-1)
-
-        print("Estimated number of clusters: %d" % n_clusters)
-        print("Estimated number of noise points: %d" % n_noise)
-        eps += 0.1
-    return labels, n_clusters, n_noise, eps
-
-eps = param_c["DBSCAN_eps"] # smaller eps, more clusters
-labels, n_clusters, n_noise, eps = dbscan_clustering(embedding, starting_eps=eps)
+# dimensionality reduction and clustering
+embedding = motion_utils.dim_red(fusi_data[:,el], param_c)
+labels, n_clusters, n_noise, eps = motion_utils.dbscan_clustering(embedding, 
+                                                                  starting_eps=param_c["DBSCAN_eps"])
 param_c["DBSCAN_eps"] = eps
 
-# %% [markdown]
 # ## Relabel cluster number to match with our label convention
-# The output of kmean clusters are integers in ascending orders, and clusters are unassigned to the label class as described below. Hence, we are mapping kmean labels to match with our convention used in manual labeling.
-# 
-# **0** means in-plane, \
-# **-1** means out-of-plane and should be skipped, \
-# **i** (integer > 0) means new out-of-plane but should be included as new plane stacks.
-
-# %%
-pred_labels = image_utils.remap_cluster_to_labels(labels)
-print(f'outlier frames from power doppler intensity: {np.where(outlier_intensity_frames)[0]}')
-print(f'outlier frames from feature extraction + clustering: {np.where(pred_labels < 0)[0]}')
+pred_labels = motion_utils.remap_cluster_to_labels(labels)
+pred_labels_oop_ind = np.where(pred_labels < 0)[0]
+outliers_intensity_ind = np.where(outlier_intensity_frames)[0]
 # combine with outlier_intensity_frames
-# check percentage that pred_labels are equal to outlier_intensity_frames
-print('Percentage of outlier frames that are also outliers in doppler intensity: ', \
-      100*np.sum((pred_labels < 0) == outlier_intensity_frames)/len(outlier_intensity_frames))
-
 pred_labels[outlier_intensity_frames] = -1
+in_plane_indices = np.where(np.array(pred_labels) == 0)[0]
 
+# logging the results
+print(f'outlier frames from feature extraction + clustering: {pred_labels_oop_ind}')
+print(f'outlier frames from power doppler intensity: {outliers_intensity_ind}')
+# calculate overlap between outlier_intensity_frames and pred_labels
+if not any(pred_labels_oop_ind) and not any(outliers_intensity_ind):
+    overlap = len(set(pred_labels_oop_ind).intersection(outlier_intensity_frames))
+    print('Percentage of overlap between the two types of outlier', \
+        overlap/len(outlier_intensity_frames)*100 if len(outlier_intensity_frames) > 0 else \
+        overlap/len(pred_labels_oop_ind)*100)
 # print predicted labels 20 in a row
 print('\nRemapped predicted labels:')
 for row in range(len(pred_labels) // 20 + 1):
     print(row*20, '\t', pred_labels[row * 20:(row + 1) * 20])
-
-# Visualize new clustering on predicted labels
-image_utils.plot_embedding(embedding, pred_labels)
-
-# out-of-plane frame indices
-oop_indices = np.where(np.array(pred_labels) < 0)[0]
-in_plane_indices = np.where(np.array(pred_labels) == 0)[0]
-
-print(f'% of out-of-plane frames: {len(oop_indices)/len(pred_labels)*100:.2f}%')
-
+print(f'% of in-plane frames: {len(in_plane_indices)/len(pred_labels)*100:.2f}%')
 
 # %%
 # show the outlier images, if any
 if np.any(labels != 0):
-    fig, axs = image_utils.show_imgs(fusi_data[:,0], np.where(labels != 0)[0])
+    fig, axs = motion_utils.show_imgs(fusi_data[:,el], np.where(labels != 0)[0])
 fig.savefig(reg_plot_dir / 'out_of_plane_images.png', dpi=300, bbox_inches='tight')
 plt.close(fig)
 
-# %%
-# Find nearest point to the centroid of the clusters
+centroids, closest_points_in_plane = motion_utils.sort_in_plane_points_closest_to_centroid(embedding, pred_labels, n_clusters)
 
-# Get the counts of consecutive labels
-summary_count = image_utils.get_consecutive_labels_counts(pred_labels)
-
-# print('\nSummary of consecutive counts for each class:')
-# for key in summary_count.keys():
-#     print(f'{key}: {summary_count[key]}')
-
-labels_df = pd.DataFrame(summary_count.items(), columns=['label', 'count'])
-labels_df = labels_df.loc[labels_df['label'].values != -1.0]
-centroids = np.zeros((len(labels_df), embedding.shape[-1]))
-ref_frame_per_cluster = np.zeros((len(labels_df),), dtype=int)
-for i, label_key in enumerate(labels_df['label']):
-    cluster_indices = np.where(pred_labels == label_key)[0]
-    centroids[i]  = np.mean(embedding[cluster_indices], axis=0)
-    distance = np.linalg.norm(centroids[i].reshape(1,-1) - embedding, axis=1)
-    closest_point_sorted = np.argsort(distance[cluster_indices])
-    if label_key == 0: # in-plane
-        closest_points_in_plane = closest_point_sorted[:15]
-    ref_frame_per_cluster[i] = cluster_indices[closest_point_sorted[0]]
-    
-labels_df['centroid'] = centroids.tolist()
-
-labels_df
-
-
-# %% [markdown]
-# # Perform image registration on in-plane frame indices
-
-# %%
 #############################################################################
 # If needed: perform image registration and display transformation dynamic  #
 #############################################################################
 
-# register in-plane images ONLY
-# if param_reg["use_thresholded_mask"] :
-#     # TO DO: if use_thresholded_mask: apply transform param to fusi data 
-#     data, density = image_utils.get_threshold_image(fusi_data[:, el], threshold=0.5)
-# else:
-data = fusi_data[:, el]
+# Perform image registration on in-plane frame indices
+if param_reg["apply_image_registration"]:
+    registered_images, extra, final_ref_frame = motion_utils.auto_ants_registration_on_in_plane(
+        fusi_data[:, el], in_plane_indices, closest_points_in_plane, 
+        optimize_ref=param_reg["auto_optimize_ref_frame"])
 
-data_selected = data[:, :, in_plane_indices]
+    # plot registration transformation outputs
+    fig, axs, prct_improve = motion_utils.plot_transform_params(extra, oop_labels=pred_labels, 
+                                    metric_name=param_reg["metric_name"], 
+                                    annotate_ref_frame=final_ref_frame)
+    fig.savefig(reg_plot_dir / 'transform_params.png', dpi=400, bbox_inches='tight')
+    plt.close(fig)
 
-if param_reg["auto_optimize_ref_frame"]:
-    # initialize the ref_frame to the point closest to the centroid of the in-plane cluster
-    ref_frame = closest_points_in_plane[0]
-else:
-    ref_frame = 0
-
-# register the images
-registered_images, extra = image_utils.register_ants(data_selected, ref_index=ref_frame)
-
-# check if the transformation is weird (e.g. rotation > 10 degrees)
-weird_transform_flag = image_utils.check_weird_transform(extra)
-i = 0
-if param_reg["auto_optimize_ref_frame"]:
-    while weird_transform_flag:
-        if weird_transform_flag and i < len(closest_points_in_plane):
-            i += 1
-            ref_frame = closest_points_in_plane[i]
-            print(f'Re-registering images...')
-        registered_images, extra = image_utils.register_ants(data_selected, ref_index=ref_frame)
-        weird_transform_flag = image_utils.check_weird_transform(extra)
-        
-if not weird_transform_flag:
-    print('Done. Transformation was successfully performed.')
-    final_ref_frame = ref_frame
-else: # still got bad transformations
-    print('No suitable transformation was performed. Discarding the transformation. Run the next cell to view results')
-    registered_images = data_selected
-    final_ref_frame = None
-
-# %%
-# plot registration transformation outputs
-fig, axs, prct_improve = image_utils.plot_transform_params(extra, oop_labels=pred_labels, 
-                                  metric_name=param_reg["metric_name"], 
-                                  in_plane_indices=in_plane_indices,
-                                  annotate_ref_frame=ref_frame)
-
-fig.savefig(reg_plot_dir / 'transform_params.png', dpi=400, bbox_inches='tight')
-plt.close(fig)
-
-# %%
-fig, ax = image_utils.plot_embedding(embedding, pred_labels, centroids=centroids, 
+    # label the nearest point to the in-plane centroid in the embedding space
+    fig, ax = motion_utils.plot_embedding(embedding, pred_labels, centroids=centroids, 
                            title=f'Cluster centroid and chosen reference image (#{final_ref_frame})')
-# label the nearest point to the in-plane centroid in the embedding space
-loc = in_plane_indices[final_ref_frame]
-ax.scatter(embedding[loc, 0], embedding[loc, 1], s=10, c='m')
-                
-fig.savefig(reg_plot_dir / 'embedding_clusters.png', dpi=300, bbox_inches='tight')
+    loc = in_plane_indices[final_ref_frame]
+    ax.scatter(embedding[loc, 0], embedding[loc, 1], s=10, c='m')
+
+else:
+    registered_images = None
+    final_ref_frame = None
+    extra = pd.DataFrame({'in_plane_indices': in_plane_indices})
+    fig, ax = motion_utils.plot_embedding(embedding, pred_labels, centroids=centroids, 
+                           title=f'Clusters and centroids')
+
+fig.savefig(reg_plot_dir / 'embedding_clusters.png', dpi=300, bbox_inches='tight')       
 plt.close(fig)
 
-# %% [markdown]
-# # Save registration outputs
+# Save outputs as csv
+tsv_filename = register_dir / "fus" / (filename[:-4]+'outputs.tsv')
+extra.to_csv(tsv_filename, index=False, sep='\t')
 
-# %%
-# save outputs as csv
-extra["in_plane_indices"]= in_plane_indices
-extra.to_csv(register_dir / "fus" / (filename[:-4]+'outputs.csv'), index=False)
-
-# %%
 # save the registered images to a gif or a mp4
 if param_reg["apply_image_registration"]:
-
     ani = MakeAnimation(registered_images, 
                         output_file=str(register_dir / 'movies' / f'{filename}_after.gif'), 
                         fps=10, 
@@ -364,38 +202,33 @@ if param_reg["apply_image_registration"]:
                         lateral=metadata['Lateral'], 
                         time=metadata['VolumeTiming'],
                         )
-else:
-    ani = None
-HTML(ani.to_jshtml())
 
-# %%
 # crop the border of the registered images
-if any(param_reg["crop_border"]):
-    registered_images = image_utils.crop_images(registered_images, crop_border=param_reg["crop_border"])
+if any(param_reg["crop_border"]) and registered_images is not None:
+    registered_images = motion_utils.crop_images(registered_images, crop_border=param_reg["crop_border"])
 
-# %%
 N=2 # duplicate the data along the elevation dimension
 # save the registered images to nifti
 if param_reg["apply_image_registration"]:
-    registered_images_padded = np.tile(np.expand_dims(registered_images, 1), (1, N, 1, 1))
+    reg_pwd = np.tile(np.expand_dims(registered_images, 1), (1, N, 1, 1))
     if param_reg["apply_temporal_smoothing"]:
-        pd = utils.boxcar_smooth(registered_images_padded, param_reg["temporal_smoothing_window_size"])
+        pd = utils.boxcar_smooth(reg_pwd, param_reg["temporal_smoothing_window_size"])
         filename_new = utils.save_nifti_to_BIDS(register_dir / "fus", pd, 
                                              filename=filename, 
                                              filename_tag='register_smooth')
     else:
-        filename_new = utils.save_nifti_to_BIDS(register_dir / "fus", registered_images_padded, 
+        filename_new = utils.save_nifti_to_BIDS(register_dir / "fus", reg_pwd, 
                                              filename=filename, 
                                              filename_tag='register')
 else:
-    data_selected_padded = np.tile(np.expand_dims(data_selected, 1), (1, N, 1, 1))
+    data_selected = fusi_data[:, :, :, in_plane_indices]
     if param_reg["apply_temporal_smoothing"]:
-        pd = utils.boxcar_smooth(data_selected_padded, param_reg["temporal_smoothing_window_size"])
+        pd = utils.boxcar_smooth(data_selected, param_reg["temporal_smoothing_window_size"])
         filename_new = utils.save_nifti_to_BIDS(register_dir / "fus", pd,
                                              filename=filename, 
-                                             filename_tag='smooth_no_reg')
+                                             filename_tag='in_plane_no_reg_smooth')
     else:
-        filename_new = utils.save_nifti_to_BIDS(register_dir / "fus", data_selected_padded,
+        filename_new = utils.save_nifti_to_BIDS(register_dir / "fus", data_selected,
                                              filename=filename, 
                                              filename_tag='in_plane_no_reg')
 
@@ -406,11 +239,16 @@ nifti_data = nib.load(nifti_full_path)
 print(f'Loaded nifti data from {nifti_full_path}')
 print(f'Nifti data shape: {nifti_data.shape}')
 
-# %% [markdown]
-# # Perform first level GLM analsysis
-
+if log_neptune:
+    run["parameters/clustering"] = param_c
+    run["parameters/registration"] = param_reg
+    run["outputs/transforms"].upload(str(tsv_filename))
+    run["plots/motion_correct/"].upload_files(str(reg_plot_dir))
 # %%
-# import nilearn as nl
+#############################################################################
+#                    Perform first level GLM analsysis                      #
+#############################################################################
+
 from nilearn import image, plotting
 from nilearn.glm.first_level import make_first_level_design_matrix, FirstLevelModel
 from nilearn.plotting import plot_design_matrix
@@ -535,25 +373,9 @@ output_file = glm_plot_dir / f"{design_matrix_name}_{contrast_id}_time_series_an
 get_ROI_activation(nifti_data, fmri_glm, design_matrix, basic_contrasts, time_stamp, task_events, param_glm, output_file)
 plt.close()
 
-
 # %%
-
 # log the labels to neptune
 if log_neptune:
-
-    run["parameters/clustering"] = param_c
-    run["parameters/registration"] = param_reg
     run["parameters/GLM"] = param_glm
-    run["output/pred_labels"] = pred_labels
-    run["plots/clustering"].upload(reg_plot_dir / 'doppler_intensity_over_time.png')
-    run["plots/clustering"].upload(reg_plot_dir / 'out_of_plane_images.png')
-    run["plots/clustering"].upload(reg_plot_dir / 'embedding_clusters.png')
-    run["plots/register"].upload(reg_plot_dir / 'transform_params.png')
-    run["plots/glm"].upload(glm_plot_dir / f'{design_matrix_name}.png')
-    run["plots/glm"].upload(glm_plot_dir / f"{design_matrix_name}_{contrast_id}_time_series.png")
-    run["plots/glm"].upload(glm_plot_dir / f"{design_matrix_name}_{contrast_id}_" \
-                            f"time_series_and_contrast_predicted.png")
-    
+    run["plots/GLM/"].upload_files(str(glm_plot_dir))
     run.stop()
-
-

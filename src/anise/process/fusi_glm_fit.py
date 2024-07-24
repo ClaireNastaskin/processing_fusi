@@ -253,7 +253,7 @@ def get_ROI_activation(nifti_data, fmri_glm, design_matrix, basic_contrasts, tim
                     roi_img.add_markers([coords[i]], colors[i], 200)
                 fig.set_size_inches(24, 14)
                 
-                if output_file:
+                if output_file is not None:
                     fig.savefig(output_file,dpi=400, bbox_inches='tight')
             else:
                 print(f"No valid clusters found for {contrast_id} that meet the criteria.")
