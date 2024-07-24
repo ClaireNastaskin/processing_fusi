@@ -17,6 +17,7 @@ from nilearn import plotting
 # from anise.io.load_matlab_dataset import load_data, load_selected_data
 import SimpleITK as sitk
 import ants
+from tqdm import tqdm
 
 def show_imgs(imgs, frame_indices=np.arange(10), timestamps=None, labels=None, fig_height=2, title=[], clim=None):
     # plot subplot frames
@@ -264,7 +265,7 @@ def register_ants(images, type_of_transform='Rigid', ref_index=0, crop_border=0)
 
     # Initialize transformations array with zero for the first image (identity transformation)
     extra = []
-    for i in range(images.shape[-1]):
+    for i in tqdm(range(images.shape[-1])):
         moving_image = ants.from_numpy(images[..., i])
         result = ants.registration(fixed=fixed_image, 
                                    moving=moving_image, 
@@ -512,7 +513,7 @@ def plot_embedding(embedding, labels=None, title='', legend='on', centroids=[]):
     if len(centroids) > 0:
         plt.scatter(centroids[:, 0], centroids[:, 1], c='k', s=100, marker='x')
     if legend == 'on':
-        fig.legend(loc='lower left', bbox_to_anchor=(1.02,0), ncol=1)
+        fig.legend(loc='lower left', bbox_to_anchor=(1,0), ncol=1)
     plt.title(title)
     plt.xticks([])
     plt.yticks([])

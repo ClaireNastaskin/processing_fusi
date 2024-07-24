@@ -239,15 +239,14 @@ def get_BIDS_derivative_dir(base_path):
 
     return register_dir, glm_dir
 
-def get_run_files_from_BIDS(base_path, run=None):
+def get_run_files_from_BIDS(base_path, run:str=None):
     fus_dir = base_path / 'fus'
     filenames = []
     if run is None:
         filenames = [f.name for f in fus_dir.iterdir() if f.is_file() and f.suffix == '.gz']
     else:
-        if isinstance(run, int):
-            run = f'{run:02d}'
-        filenames = [f.name for f in fus_dir.iterdir() if f.is_file() and f.suffix == '.gz' and run in f.name]
+        filenames = [f.name for f in fus_dir.iterdir() if f.is_file() 
+                     and f.suffix == '.gz' and run in f.name]
     print(f'Found {len(filenames)} files:')
     for f in filenames: 
         print('\t', f)
