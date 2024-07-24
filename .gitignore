@@ -1,3 +1,6 @@
 .DS_Store
 Experiments/__pycache__/
 src/anise/__pycache__/
+src/anise/process/__pycache__/
+.env
+.neptune/
