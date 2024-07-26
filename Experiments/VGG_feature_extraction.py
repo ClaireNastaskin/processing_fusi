@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-import anise.motion_utils as motion_utils
 import anise.utils as utils
 
 from sklearn.decomposition import PCA
@@ -50,6 +49,7 @@ def VGG_extract_features(fusi_data, model, device):
 
     if fusi_data.ndim == 4: # if the data is 4D, take the first channel elevation = 0
         fusi_data = fusi_data[:,0]
+        print(f'Reduce 4D to 3D; fUSI data shape: {fusi_data.shape}')
 
     #  Transform the image, so it becomes readable with the model
     transform = v2.Compose([

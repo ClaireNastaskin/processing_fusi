@@ -129,6 +129,7 @@ if __name__ == '__main__':
 
     # Required positional arguments 
     parser.add_argument("session_dir", type=Path,
+                        help = "Session directory path, e.g. '2024-06-07/UCLA_006/'",
                         )
     
     # Optional arguments
@@ -154,4 +155,4 @@ if __name__ == '__main__':
     if save_output_locally:
         print("Output is saved in local 'Downloads/' folder rather than in the same directory as the data is stored.")
 
-    # main(root, base_path, save_output_locally)
+    main(root, base_path, save_output_locally)

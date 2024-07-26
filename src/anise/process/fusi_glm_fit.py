@@ -170,6 +170,8 @@ def plot_results(fmri_glm, z_map: np.ndarray, dm: utils.DirectoryManager, sequen
 
 def get_ROI_activation(nifti_data, fmri_glm, design_matrix, basic_contrasts, time_stamp, events, param_glm, output_file=None):
     # Find ROIs by identifying the locations that show a significant response to the stimulus
+    figs = []
+    contrast_ids = []
     mean_image = mean_img(nifti_data)
 
     # Loop over all conditions in basic_contrasts
@@ -182,9 +184,9 @@ def get_ROI_activation(nifti_data, fmri_glm, design_matrix, basic_contrasts, tim
                                        cluster_threshold=20)
             table.set_index("Cluster ID", drop=True)
 
-            if not table.empty and len(table) >= param_glm["num_locations"]:
+            if not table.empty and len(table) >= param_glm["num_ROI_locations"]:
                 # get the num_locations largest clusters' max x, y, and z coordinates
-                coords = table.loc[range(0, param_glm["num_locations"]), ["X", "Y", "Z"]].values
+                coords = table.loc[range(0, param_glm["num_ROI_locations"]), ["X", "Y", "Z"]].values
                 # coords = np.vstack([coords, [10.45000061, 0., 18.40000045]])
 
                 # Now use the ROIs to extract the time series 
@@ -252,11 +254,19 @@ def get_ROI_activation(nifti_data, fmri_glm, design_matrix, basic_contrasts, tim
                     axs[0, i].set_ylim(mn, mx)
                     roi_img.add_markers([coords[i]], colors[i], 200)
                 fig.set_size_inches(24, 14)
-                
+                figs.append(fig)
+                contrast_ids.append(contrast_id)
+                plt.show(block=False)
                 if output_file is not None:
-                    fig.savefig(output_file,dpi=400, bbox_inches='tight')
+                    filename = f"{output_file}_{contrast_id}.png"
+                    fig.savefig(filename)
+                    print(f"Saved figure to {filename}")
+                    plt.clf()
+                    plt.close(fig)
+                    axs = None
             else:
-                print(f"No valid clusters found for {contrast_id} that meet the criteria.")
+                print(f"No valid clusters found for {contrast_id} that meet the criteria.")      
+    return figs, contrast_ids
 
 def main(base_path: Path, sequence: str, event_time_offset: float, apply_image_registration: bool, smoothing_fwhm: float, num_tissue_components: int, plot_figures: bool = False):
     """

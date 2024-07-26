@@ -38,7 +38,7 @@ def show_imgs(imgs, frame_indices=np.arange(10), timestamps=None, labels=None, f
         else:
             ax.remove()
     plt.tight_layout(pad=0.3, w_pad=0.1)
-    plt.show()
+    plt.show(block=False)
     return fig, axs
 
 def plot_pd_intensity_over_time(imgs, y_lim=[], outlier_threshold=0):
@@ -74,7 +74,6 @@ def plot_pd_intensity_over_time(imgs, y_lim=[], outlier_threshold=0):
         plt.legend()
     else:
         outlier_intensity_frames = []
-    plt.show()
     return doppler_intensity, outlier_intensity_frames, fig, ax
 
 def boxcar_smooth(data, window_size):
@@ -330,8 +329,7 @@ def crop_images(images, crop_border):
         transformed_images.append(cropped_image)
     return np.stack(transformed_images, axis=-1)
 
-def plot_transform_params(extra, oop_labels=[], metric_name='', 
-                            annotate_ref_frame: int = None):
+def plot_transform_params(extra, oop_labels=[], metric_name='', annotate_ref_frame: int = None):
     # Create a new figure with three subplots
     # similarity metric value
     # translation after registration
@@ -513,7 +511,8 @@ def remap_cluster_to_labels(original_labels):
 
     return pred_labels
 
-def plot_embedding(embedding, labels=None, title='', legend='on', centroids=[]):
+def plot_embedding(embedding, labels=None, title='', legend='on', 
+                   centroids=[], highlight_points=[], output_file=None):
     if labels is None:
         # labels not given, assign all to in-plane
         labels = np.zeros((embedding.shape[0], ), dtype=np.int32)
@@ -551,11 +550,19 @@ def plot_embedding(embedding, labels=None, title='', legend='on', centroids=[]):
     plt.title(title)
     plt.xticks([])
     plt.yticks([])
+
+    if len(highlight_points) > 0:
+        for i in highlight_points:
+            plt.scatter(embedding[i, 0], embedding[i, 1], s=10, c='m')
+
+    if output_file is not None:
+        fig.savefig(output_file, dpi=300, bbox_inches='tight')       
+
     return fig, ax
 
-def dim_red(fusi_data, param_c):
-    dim_red_method = param_c["dim_red_method"] # 'VGG' or 'PCA' or 'UMAP' or 'tSNE'
-    pca_n_components = param_c["pca_n_components"]
+def dim_red(fusi_data, param):
+    dim_red_method = param["dim_red_method"] # 'VGG' or 'PCA' or 'UMAP' or 'tSNE'
+    pca_n_components = param["pca_n_components"]
     
     print(f'Using {dim_red_method} for clustering and visualization...')
 
@@ -595,7 +602,7 @@ def dim_red(fusi_data, param_c):
             from sklearn.manifold import TSNE
             ### Visualize PCA projection with tSNE
             tsne = TSNE(n_components=2, verbose=0, 
-                        perplexity=param_c["perplexity"], max_iter=300, random_state=42)
+                        perplexity=param["perplexity"], max_iter=300, random_state=42)
             embedding = tsne.fit_transform(lowd)
 
     # Visualize top 2 embedding space
@@ -609,8 +616,9 @@ def dbscan_clustering(embedding, starting_eps=1):
     embedding = embedding / np.std(embedding, axis=0)
     n_clusters = 5
     n_noise = embedding.shape[0]
-    eps = starting_eps
+    eps = starting_eps - 0.1
     while n_clusters > 4 or n_noise > embedding.shape[0] / 2:
+        eps += 0.1
         print(f'Using DBSCAN with eps = {eps}\n')
         db = DBSCAN(eps=eps).fit(embedding)
         labels = db.labels_
@@ -621,7 +629,6 @@ def dbscan_clustering(embedding, starting_eps=1):
 
         print("Estimated number of clusters: %d" % n_clusters)
         print("Estimated number of noise points: %d" % n_noise)
-        eps += 0.1
     return labels, n_clusters, n_noise, eps
 
 def sort_in_plane_points_closest_to_centroid(embedding, pred_labels, n_clusters):
