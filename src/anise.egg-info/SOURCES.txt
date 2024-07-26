@@ -1,4 +1,6 @@
+README.md
 pyproject.toml
+setup.py
 src/anise/__init__.py
 src/anise.egg-info/PKG-INFO
 src/anise.egg-info/SOURCES.txt
