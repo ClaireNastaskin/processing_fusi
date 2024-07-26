@@ -128,10 +128,7 @@ for i, row in tqdm(df.iterrows(), total=len(df)):
 
 df['max_tstat2'] = df_zmap['largest_clusters_max_z']
 df['largest_cluster'] = df_zmap['largest_cluster']
-np.savez_compressed(
-    glm_path / 'cluster_idxs.npz',
-    **{str(k): v for k, v in largest_cluster_idxs.items()}
-)
+np.savez_compressed(glm_path / 'cluster_idxs.npz', largest_cluster_idxs)
 
 keep_dir = glm_path / "plots" / "keep"
 exclude_dir = glm_path / "plots" / "exclude"

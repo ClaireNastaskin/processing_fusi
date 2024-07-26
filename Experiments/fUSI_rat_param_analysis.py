@@ -8,7 +8,6 @@ import scipy.stats
 from nilearn.glm.second_level import SecondLevelModel
 from nilearn.plotting import plot_design_matrix
 import statsmodels.api as sm
-import statsmodels.formula.api as smf
 
 import matplotlib.pyplot as plt
 import seaborn as sns
