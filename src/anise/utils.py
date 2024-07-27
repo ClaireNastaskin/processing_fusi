@@ -254,6 +254,15 @@ def get_run_files_from_BIDS(base_path, run:str=None):
 
 def load_data_from_BIDS(base_path, filename):
 
+    # Get the subject, session, run, and acquisition IDs
+    sub_id = match_param('sub', base_path)
+    ses_id = match_param('ses', base_path)
+    sub_type = 'human' if 'UCLA' in sub_id else 'rat'
+    run_id = 'run-' + get_param('run', filename)
+    acq_id = 'acq-' + get_param('acq', filename)
+    exp_id = dict(sub=sub_id, ses=ses_id, run=run_id, acq=acq_id, sub_type=sub_type)
+    print('='*47 + run_id + '='*47)
+
     # Load the NIFTI file
     fus_dir = base_path / 'fus'
     beh_dir = base_path / 'beh'
@@ -269,9 +278,9 @@ def load_data_from_BIDS(base_path, filename):
     # Load the events
     event_fname = filename.replace('pwdt.nii.gz', 'events.tsv')
     events = pd.read_csv(beh_dir / event_fname, sep='\t')
-    print('Loaded events: \t  ', event_fname)
-
-    return nifti_data, metadata, events
+    print('Loaded events: \t  ', event_fname, '\n')
+    
+    return nifti_data, metadata, events, exp_id
 
 ### Save functions
 def save_nifti_to_BIDS(output_path, data, filename=None, filename_tag='register'):
@@ -313,7 +322,5 @@ def save_nifti_to_BIDS(output_path, data, filename=None, filename_tag='register'
     if filename_tag:
         filename = filename + '_' + filename_tag
     nifti_img.to_filename(output_path / (filename + '.nii.gz'))
-    print(f'Output location: {output_path}')
-    print(f'Saved PD NIFTI file as: {filename}.nii.gz')
-    
+    print(f'Saved NIFTI file as:    {output_path}/{filename}.nii.gz')
     return filename

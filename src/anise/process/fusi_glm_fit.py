@@ -172,12 +172,13 @@ def get_ROI_activation(nifti_data, fmri_glm, design_matrix, basic_contrasts, tim
     # Find ROIs by identifying the locations that show a significant response to the stimulus
     figs = []
     contrast_ids = []
+    r_squared_all = dict()
     mean_image = mean_img(nifti_data)
 
     # Loop over all conditions in basic_contrasts
     for contrast_id, contrast_val in basic_contrasts.items():
         if contrast_id not in ['drift_1', 'constant','tx','ty','rot']:
-            print(f"Processing contrast: {contrast_id}")
+            print(f"[GLM] Processing contrast: {contrast_id}")
             z_map = fmri_glm.compute_contrast(contrast_val, output_type="stat")
             table = get_clusters_table(z_map, 
                                        stat_threshold=param_glm["stat_threshold"], 
@@ -256,17 +257,19 @@ def get_ROI_activation(nifti_data, fmri_glm, design_matrix, basic_contrasts, tim
                 fig.set_size_inches(24, 14)
                 figs.append(fig)
                 contrast_ids.append(contrast_id)
+                r_squared_all[contrast_id] = r_squared_values
+
                 plt.show(block=False)
                 if output_file is not None:
-                    filename = f"{output_file}_{contrast_id}.png"
+                    filename = f"{output_file}_stimulus_{len(contrast_ids)}.png"
                     fig.savefig(filename)
-                    print(f"Saved figure to {filename}")
+                    print(f"[GLM] Saved figure to {filename}")
                     plt.clf()
                     plt.close(fig)
                     axs = None
             else:
-                print(f"No valid clusters found for {contrast_id} that meet the criteria.")      
-    return figs, contrast_ids
+                print(f"[GLM] No valid clusters found for {contrast_id} that meet the criteria.")      
+    return r_squared_all, figs
 
 def main(base_path: Path, sequence: str, event_time_offset: float, apply_image_registration: bool, smoothing_fwhm: float, num_tissue_components: int, plot_figures: bool = False):
     """
