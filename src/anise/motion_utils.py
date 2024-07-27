@@ -60,7 +60,7 @@ def plot_pd_intensity_over_time(imgs, y_lim=[], outlier_threshold=0):
         median_intensity = np.median(doppler_intensity)
         outlier_intensity_frames = np.abs(doppler_intensity - median_intensity) > outlier_threshold
         outlier_frames = np.where(outlier_intensity_frames)[0]
-        print(f'Outlier frames more than {outlier_threshold:.1f} from median: ', outlier_frames)
+        print(f'[In-plane] Outlier frames more than {outlier_threshold:.1f} from median: ', outlier_frames)
         
         # plot the median intensity and the outliers
         plt.hlines(median_intensity, 0, len(doppler_intensity),color='k', label='Median Intensity')
@@ -262,7 +262,7 @@ def register_sitk(images, metric='correlation', ref_index=0):
 def register_ants(images, type_of_transform='Rigid', ref_index=0, crop_border=0):
 
     # use image nearest to centroid as the reference frame
-    print(f'Reference frame for registration is: {ref_index}')
+    print(f'[Registration] Reference frame for registration is: {ref_index}')
     fixed_image = ants.from_numpy(images[..., ref_index])
     transformed_images = []
 
@@ -311,7 +311,7 @@ def register_ants(images, type_of_transform='Rigid', ref_index=0, crop_border=0)
                       })
 
     registered_images = np.stack(transformed_images, axis=-1)
-    print('Registered images shape:', registered_images.shape)
+    print('[Registration] Registered images shape:', registered_images.shape)
     extra_df = pd.DataFrame(extra)
 
     return registered_images, extra_df
@@ -431,9 +431,9 @@ def auto_ants_registration_on_in_plane(data, in_plane_indices, ref_frame_list=[]
     weird_transform_flag = check_weird_transform(extra)
     i = 1
     if optimize_ref:
-        while weird_transform_flag:
+        while weird_transform_flag and i < 10:
             ref_frame = ref_frame_list[i]
-            print(f'Re-registering images...')
+            print(f'[Registration] Re-registering images...')
             registered_images, extra = register_ants(data_selected, ref_index=ref_frame)
             weird_transform_flag = check_weird_transform(extra)
             if i < len(ref_frame_list):
@@ -443,12 +443,12 @@ def auto_ants_registration_on_in_plane(data, in_plane_indices, ref_frame_list=[]
         if not weird_transform_flag:
             extra['in_plane_indices'] = in_plane_indices
             final_ref_frame = ref_frame
-            print('Done. Transformation was successfully performed.')
+            print('[Registration] Done. Transformation was successfully performed.')
         else: 
             registered_images = data_selected
             extra = None
             final_ref_frame = None
-            print('No suitable transformation was performed. Revert to no registration.')
+            print('[Registration] No suitable transformation was performed. Revert to no registration.')
     
     return registered_images, extra, final_ref_frame
 
@@ -546,7 +546,7 @@ def plot_embedding(embedding, labels=None, title='', legend='on',
     if len(centroids) > 0:
         plt.scatter(centroids[:, 0], centroids[:, 1], c='k', s=100, marker='x')
     if legend == 'on':
-        fig.legend(loc='lower left', bbox_to_anchor=(1,0), ncol=1)
+        fig.legend(loc='center left', bbox_to_anchor=(.9, 0.5), ncol=1)
     plt.title(title)
     plt.xticks([])
     plt.yticks([])
@@ -564,7 +564,7 @@ def dim_red(fusi_data, param):
     dim_red_method = param["dim_red_method"] # 'VGG' or 'PCA' or 'UMAP' or 'tSNE'
     pca_n_components = param["pca_n_components"]
     
-    print(f'Using {dim_red_method} for clustering and visualization...')
+    print(f'[In-plane] Begins {dim_red_method} for dimensionality reduction...')
 
     if dim_red_method == 'VGG':
         # Apply VGG to extract features, then PCA on the features
@@ -573,7 +573,7 @@ def dim_red(fusi_data, param):
     else:
         # use the thresholded images 
         threshold_imgs, density = get_threshold_image(fusi_data, threshold=0.5)
-        print('Applied binary masking to get thresholded images')
+        print('\tApplied binary masking to get thresholded images')
         show_imgs(threshold_imgs, np.arange(20), fig_height=1.1, title='off')
         imgs_flatten = threshold_imgs.reshape(-1, threshold_imgs.shape[-1]).T
         # imgs_flatten = fusi_data.reshape(-1, fusi_data.shape[-1]).T
@@ -583,10 +583,9 @@ def dim_red(fusi_data, param):
 
         # Reduce number of dimension
         lowd = pca.fit_transform(imgs_flatten)
-        print(f'After PCA shape: {lowd.shape}')
+        print(f'\tAfter PCA shape: {lowd.shape}')
         explained_variance = pca.explained_variance_ratio_
-        print(f'Explain variance sum of top {pca_n_components} components: \
-            {sum(explained_variance).round(3)*100}%')
+        print(f'\tExplain variance sum of top {pca_n_components} components: {sum(explained_variance)*100:.2f}%')
 
         if dim_red_method == 'PCA':
             ### Visualize with PCA
@@ -612,6 +611,7 @@ def dim_red(fusi_data, param):
 
 def dbscan_clustering(embedding, starting_eps=1):
     from sklearn.cluster import DBSCAN
+    print('[In-plane] Begins DBSCAN clustering...')
     # normalize the embedding
     embedding = embedding / np.std(embedding, axis=0)
     n_clusters = 5
@@ -619,7 +619,7 @@ def dbscan_clustering(embedding, starting_eps=1):
     eps = starting_eps - 0.1
     while n_clusters > 4 or n_noise > embedding.shape[0] / 2:
         eps += 0.1
-        print(f'Using DBSCAN with eps = {eps}\n')
+        print(f'\tUsing epsilon = {eps}')
         db = DBSCAN(eps=eps).fit(embedding)
         labels = db.labels_
 
@@ -627,8 +627,8 @@ def dbscan_clustering(embedding, starting_eps=1):
         n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
         n_noise = list(labels).count(-1)
 
-        print("Estimated number of clusters: %d" % n_clusters)
-        print("Estimated number of noise points: %d" % n_noise)
+        print("\tEstimated number of clusters: %d" % n_clusters)
+        print("\tEstimated number of noise points: %d" % n_noise)
     return labels, n_clusters, n_noise, eps
 
 def sort_in_plane_points_closest_to_centroid(embedding, pred_labels, n_clusters):
