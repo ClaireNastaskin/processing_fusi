@@ -4,7 +4,7 @@ from anise.gui import MakeAnimation
 from anise.SessionLoader import SessionLoader
 import argparse
 
-def main(root: Path, base_path: Path, save_output_locally=False):
+def main(root: Path, base_path: Path, run_id, save_output_locally=False):
     """
     Main function to process fUSI data and save to BIDS format, along with task info and movies
     It will process all runs within the base_path and save the output to the output_path
@@ -20,7 +20,11 @@ def main(root: Path, base_path: Path, save_output_locally=False):
          by default False: save output to root, otherwise local "Downloads" folder
     """
 
-    runs = os.listdir(base_path)
+    
+    if run_id:
+        runs = [f'run-{run_id:02d}']
+    else:
+        runs = os.listdir(base_path)
 
     # define output path to save data, plots, and videos
     if save_output_locally:
@@ -32,6 +36,8 @@ def main(root: Path, base_path: Path, save_output_locally=False):
     # loop over runs
     for i, run in enumerate(runs):
 
+        if run.startswith('._'):
+            continue
         print('\n___________________________________________________________')
         print(f'\n\nProcessing: {run}\n')
         
@@ -55,7 +61,10 @@ def main(root: Path, base_path: Path, save_output_locally=False):
             #################################################################
 
             # process power doppler files based on same number of tissue components in clutter filter (PCA)
-            unique_num_tissue_components = ses.find_unique_num_tissue_components_within_single_acqusition()
+            try:
+                unique_num_tissue_components = ses.find_unique_num_tissue_components_within_single_acqusition()
+            except:
+                continue
 
             # Parse separately if more than one tissue components within a single acqusition
             for n_tc in unique_num_tissue_components:
@@ -65,15 +74,14 @@ def main(root: Path, base_path: Path, save_output_locally=False):
                     
                     # load fusi data
                     fusi_data = ses.load_fusi_frames()
-                except ValueError:
-                    print(f'skipping this tissue component value: {n_tc}')
+                except KeyError:
+                    print(f'Skipping this tissue component value: {n_tc}')
                     continue
             
                 #################################################################
                 #         Load task event and add timing offset                 #
                 #################################################################
-
-                if ses.task_events is not None:
+                if ses.task_events is None:
                     ses.extract_task_events()
                     behavior_offset = (ses.probe_events['global_start_time'][0] - ses.task_start).total_seconds()
                     print('\n\tpwd ensemble start time:', ses.probe_events['global_start_time'][0])
@@ -83,7 +91,7 @@ def main(root: Path, base_path: Path, save_output_locally=False):
 
                     # adjust task events onset time
                     ses.task_events['onset'] = ses.task_events['onset'] - behavior_offset
-                    ses.task_events
+                    print(ses.task_events)
 
                 #################################################################
                 #                          save outputs                         #
@@ -121,6 +129,7 @@ def main(root: Path, base_path: Path, save_output_locally=False):
                                         time=ses.sidecar['VolumeTiming'],
                     )
                 print(f'saved movies to {file_path}')
+    print(f'Finish scanning run {run}.')
 
 if __name__ == '__main__':
 
@@ -137,7 +146,12 @@ if __name__ == '__main__':
                         help="Root path dir up until session level, e.g. 'cassini/UCLA_collaboration/'",
                         default='cassini/UCLA_collaboration/'
                         )
-    
+
+    parser.add_argument("--run", type=int, 
+                        help="Run number to process, e.g. 1",
+                        default=[],
+                        )
+        
     # Optional arguments
     parser.add_argument("--local",
                         help="If set True, output files will be saved to local 'Downloads/' folder. \
@@ -146,13 +160,12 @@ if __name__ == '__main__':
                         )
     
     args = parser.parse_args()
-
     root = Path.home() / args.root
     base_path = root / args.session_dir
+    run_id = args.run
     save_output_locally = args.local # save to root
-    
     print(f'Data path is set to: {base_path}')
     if save_output_locally:
         print("Output is saved in local 'Downloads/' folder rather than in the same directory as the data is stored.")
 
-    main(root, base_path, save_output_locally)
+    main(root, base_path, run_id, save_output_locally)

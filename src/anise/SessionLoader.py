@@ -73,9 +73,11 @@ class SessionLoader:
         if self.subject_id is None:
             raise ValueError('subject_id not found')
         
-        # get plane (optional)
-        self.plane = [part for part in base_path.relative_to(root).parts if part.startswith("plane")][0]
-
+        # get plane (optional) # TO-CHECK: Alex's default to '1' rather than None
+        planes = [part for part in base_path.relative_to(root).parts if part.startswith("plane")]
+        self.plane = planes[0].replace('plane', '').replace('_', '') \
+            if len(planes) == 1 else None
+        
         # get session date
         self.session_id = re.search(r'\d{4}-\d{2}-\d{2}', str(base_path)).group(0)
         if self.session_id is None:
@@ -196,12 +198,13 @@ class SessionLoader:
         DataFrame: A DataFrame containing the timestamps and event descriptions.
         """
 
-        filenames = [f for f in os.listdir(self.power_doppler_path) if 
-                     f.endswith('.h5') and not f.startswith('.')]
-        
-        if not filenames:
+        filenames = []
+        try:
+            files = os.listdir(self.power_doppler_path)
+            filenames = [f for f in files if f.endswith('.h5') and not f.startswith('.')]
+        except FileNotFoundError:
             raise ValueError("No power doppler files found in the specified directory.")
-        
+            
         # Extract datetime from filenames and store data
         data = []
         for filename in filenames:
@@ -254,11 +257,16 @@ class SessionLoader:
         for i, t in enumerate(timestamps):
             event_decoded = events[i].decode('utf-8')
             # audio stimulus events specific
-            if event_decoded == 'start_playing' or event_decoded == 'stop_playing':
-                event_decoded = 'stimulus_onset' if event_decoded == 'start_playing' else 'stimulus_offset'
-                task_type = 'audio'
-            else:
-                task_type = 'SSEP'
+            if event_decoded in ['start_playing', 'stop_playing', 'stimulus_onset', 'stimulus_offset']:
+                if event_decoded == 'start_playing' or event_decoded == 'stop_playing':
+                    task_type = 'audio'
+                else:
+                    task_type = 'SSEP'
+                # rename event to match
+                if event_decoded == 'start_playing':
+                    event_decoded = 'stimulus_onset'
+                elif event_decoded == 'stop_playing':
+                    event_decoded = 'stimulus_offset'
             
             if event_decoded == 'stimulus_onset' or event_decoded == 'stimulus_offset':
                 try:
@@ -461,13 +469,13 @@ class SessionLoader:
 
         # Check if every entry in 'fusi_file_name' column is populated
         if self.probe_events['fusi_file_name'].isnull().any():
-            print("Some entries in 'fusi_file_name' are not populated. See more in 'self.probe_events'.")
+            print("Some entries in 'fusi_file_name' are not populated with ", \
+                  f"number of tissue components = {self.num_tissue_components}. Exiting...")
+            raise KeyError
         else:
             print("All entries in 'fusi_file_name' are properly populated.")
-
-        self.probe_events['full_path'] = self.power_doppler_path / self.probe_events['fusi_file_name']
-
-        self.n_frames = len(self.probe_events)
+            self.probe_events['full_path'] = self.power_doppler_path / self.probe_events['fusi_file_name']
+            self.n_frames = len(self.probe_events)
         return self.probe_events
             
     def load_fusi_frames(self, frame_indices=-1):
