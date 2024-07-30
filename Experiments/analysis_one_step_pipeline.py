@@ -21,13 +21,13 @@ from dotenv import load_dotenv
 load_dotenv()
 NEPTUNE_API_TOKEN = os.environ["NEPTUNE_API_TOKEN"]
 
-def set_params(n_frames):
+def set_params(n_images):
     # clustering parameters
     param_c = dict(
         outlier_threshold = 500, # pwd intensity
         dim_red_method = 'VGG', # 'PCA' or 'UMAP' or 'tSNE' or 'VGG'
-        pca_n_components = min(100, n_frames - 1), # not applied for VGG
-        perplexity = min(200, n_frames - 1), # specific for tSNE
+        pca_n_components = min(100, n_images - 1), # not applied for VGG
+        perplexity = min(200, n_images - 1), # specific for tSNE
         DBSCAN_eps = 1, # smaller eps, more clusters
         )
 
@@ -54,7 +54,7 @@ def set_params(n_frames):
         )
     return param_c, param_reg, param_glm
 
-def run_in_plane_clustering(fusi_data, param_c, reg_plot_dir, log_neptune, run):
+def run_in_plane_clustering(fusi_data, param_c, reg_plot_dir, log_neptune):
 
     # find and confirm if there's any outlier frames that should be removed e.g. high brightness or noise
     print('\n[In-plane] Perfrom in plane images detection...')
@@ -107,7 +107,8 @@ def run_in_plane_clustering(fusi_data, param_c, reg_plot_dir, log_neptune, run):
 
     # show the outlier images, if any
     if np.any(pred_labels != 0):
-        fig_oop, axs = motion_utils.show_imgs(fusi_data, np.where(pred_labels != 0)[0])
+        clim_max = np.percentile(fusi_data, 99)
+        fig_oop, axs = motion_utils.show_imgs(fusi_data, np.where(pred_labels != 0)[0], clim=[0, clim_max])
         fig_oop.savefig(reg_plot_dir / 'out_of_plane_images.png', dpi=300, bbox_inches='tight')
         plt.close(fig_oop)
     
@@ -115,15 +116,15 @@ def run_in_plane_clustering(fusi_data, param_c, reg_plot_dir, log_neptune, run):
     centroids, closest_points_in_plane = motion_utils.sort_in_plane_points_closest_to_centroid(
                                             embedding, pred_labels, n_clusters)
     
-    if log_neptune:
-        run["parameters/clustering"] = stringify_unsupported(param_c)
-        run["outputs/percent_in_plane"].append(prct_in_plane)
-        run["outputs/n_clusters"].append(n_clusters)
+    if log_neptune is not None:
+        log_neptune["parameters/clustering"] = stringify_unsupported(param_c)
+        log_neptune["outputs/percent_in_plane"].append(prct_in_plane)
+        log_neptune["outputs/n_clusters"].append(n_clusters)
 
     return embedding, pred_labels, centroids, closest_points_in_plane
 
 def run_registration(fusi_data, metadata, pred_labels, closest_points_in_plane,
-                    param_reg, reg_plot_dir, filename, log_neptune, run):
+                    param_reg, reg_plot_dir, filename, log_neptune):
     
     #############################################################################
     #                   If needed: perform image registration                   #
@@ -180,9 +181,9 @@ def run_registration(fusi_data, metadata, pred_labels, closest_points_in_plane,
                             lateral=metadata['Lateral'], 
                             time=metadata['VolumeTiming'],
                             )
-    if log_neptune and ani is not None:
-        run["outputs/movies/before"].upload(str(register_dir / 'movies' / f'{filename}_before.mp4'))
-        run["outputs/movies/after"].upload(str(register_dir / 'movies' / f'{filename}_after.mp4'))
+    if log_neptune is not None and ani is not None:
+        log_neptune["outputs/movies/before"].upload(str(register_dir / 'movies' / f'{filename}_before.mp4'))
+        log_neptune["outputs/movies/after"].upload(str(register_dir / 'movies' / f'{filename}_after.mp4'))
 
     # crop the border of the registered images
     if any(param_reg["crop_border"]) and registered_images is not None:
@@ -221,21 +222,20 @@ def run_registration(fusi_data, metadata, pred_labels, closest_points_in_plane,
     print(f'New NIFTI data shape:   {nifti_data.shape}\n')
 
     # log the results to neptune
-    if log_neptune:
+    if log_neptune is not None:
         try:
-            run["parameters/registration"] = stringify_unsupported(param_reg)
-            run["outputs/percent_improvement"].append(prct_improve)
-            run["outputs/transforms"].upload(str(tsv_filename))
+            log_neptune["parameters/registration"] = stringify_unsupported(param_reg)
+            log_neptune["outputs/percent_improvement"].append(prct_improve)
+            log_neptune["outputs/transforms"].upload(str(tsv_filename))
             for plot in reg_plot_dir.iterdir():
                 fname = plot.name
-                run["outputs/plots/motion_correction/" + fname].upload(str(plot))
+                log_neptune["outputs/plots/registration/" + fname].upload(str(plot))
         except Exception as e:
             print(f'Error in logging registration outputs: {e}')
-            import pdb; pdb.set_trace()
 
     return nifti_data, extra, final_ref_frame
 
-def plot_embedding_clusters(embedding, pred_labels, centroids, final_ref_frame, reg_plot_dir, log_neptune, run):
+def plot_embedding_clusters(embedding, pred_labels, centroids, final_ref_frame, reg_plot_dir, log_neptune):
     # label the nearest point to the in-plane centroid in the embedding space
     if final_ref_frame is not None:
         title_str = f'Cluster centroid and chosen reference image (#{final_ref_frame})'
@@ -251,10 +251,10 @@ def plot_embedding_clusters(embedding, pred_labels, centroids, final_ref_frame, 
                                           title=title_str, 
                                           output_file=output_filename)
     plt.close(fig)
-    if log_neptune:
-        run["outputs/plots/clustering/embedding_clusters.png"].upload(str(output_filename))
+    if log_neptune is not None:
+        log_neptune["outputs/plots/registration/embedding_clusters.png"].upload(str(output_filename))
 
-def run_glm(nifti_data, task_events, extra, metadata, param_glm, glm_zmap_dir, glm_plot_dir, log_neptune, run):
+def run_glm(nifti_data, task_events, extra, metadata, param_glm, glm_zmap_dir, glm_plot_dir, log_neptune):
     #############################################################################
     #                    Perform first level GLM analsysis                      #
     #############################################################################
@@ -266,7 +266,7 @@ def run_glm(nifti_data, task_events, extra, metadata, param_glm, glm_zmap_dir, g
     from nilearn.maskers import NiftiSpheresMasker
     from nilearn.reporting import get_clusters_table
     from sklearn.metrics import r2_score
-    from anise.process.fusi_glm_fit import get_ROI_activation
+    from anise.process.fusi_glm_fit import get_ROI_activation, create_design_matrix
 
     #######################################
     #     Create design matrix for GLM    #
@@ -278,29 +278,11 @@ def run_glm(nifti_data, task_events, extra, metadata, param_glm, glm_zmap_dir, g
     time_stamp = np.array(metadata['VolumeTiming'])[in_plane_indices]
     if "time_stamp" in task_events.columns:
         task_events = task_events.drop("time_stamp", axis=1)
-    
 
-    if param_glm["apply_transform_in_design_mtx"]:
-        design_matrix_name = 'yes_transform_design_mtx'
-        design_matrix = make_first_level_design_matrix(
-            time_stamp,
-            task_events,
-            drift_model="polynomial",
-            drift_order=1,
-            add_regs=extra[["translation_x", "translation_y", "rotation"]].to_numpy(),
-            add_reg_names=["tx","ty","rot"],
-            hrf_model=param_glm["hrf_model"],
-        )
-    else:
-        design_matrix_name = 'no_transform_design_mtx'
-        design_matrix = make_first_level_design_matrix(
-            time_stamp,
-            task_events,
-            drift_model="polynomial",
-            drift_order=1,
-            hrf_model=param_glm["hrf_model"],
-        )
-
+    # create design matrix
+    transformations = extra[["translation_x", "translation_y", "rotation"]].to_numpy()
+    design_matrix, design_matrix_name = create_design_matrix(time_stamp, task_events, \
+        transformations, param_glm["apply_transform_in_design_mtx"], hrf_model=param_glm["hrf_model"])
     plot_design_matrix(design_matrix, output_file=glm_plot_dir / f'{design_matrix_name}.png')
     
     # This cell creates an identity matrix of size equal to the number of columns in the design_matrix.
@@ -359,34 +341,31 @@ def run_glm(nifti_data, task_events, extra, metadata, param_glm, glm_zmap_dir, g
     get_ROI_activation(nifti_data, fmri_glm, design_matrix, basic_contrasts, time_stamp, task_events, param_glm, output_file)
 
     # log the labels to neptune
-    if log_neptune:
+    if log_neptune is not None:
         try:
-            run["parameters/GLM"] = stringify_unsupported(param_glm)
-            run["outputs/r2"] = stringify_unsupported(r2_val)
+            log_neptune["parameters/GLM"] = stringify_unsupported(param_glm)
+            log_neptune["outputs/r2"] = stringify_unsupported(r2_val)
             for plot in glm_plot_dir.iterdir():
                 fname = plot.name
-                run["outputs/plots/GLM/" + fname].upload(str(plot))
+                log_neptune["outputs/plots/GLM/" + fname].upload(str(plot))
         except Exception as e:
             print(f'Error in logging GLM outputs: {e}')
-            import pdb; pdb.set_trace()
     return
 
-def main(BIDS_dir, filename, log_neptune):
+def main(BIDS_dir, filename, log_neptune_flag):
     #################################################################
-    #      Define data paths and choose output path location        #
+    #           Define output path locations and initialize run     #
     #################################################################
 
     # Get the registration and GLM output directories
     register_dir, glm_dir = utils.get_BIDS_derivative_dir(BIDS_dir)
-    
-    # initialize neptune run
 
     # Load the data
     nifti_data, metadata, task_events, exp_id = utils.load_data_from_BIDS(BIDS_dir, filename)
     fusi_data = nifti_data.get_fdata()
     filename = filename.replace('.nii.gz', '')
     folder_tag = filename[re.search(exp_id['run'], filename).start():-5]
-    n_frames = fusi_data.shape[-1]
+    n_images = fusi_data.shape[-1]
     
     # initialize and make directory
     reg_plot_dir = register_dir / 'plots' / folder_tag
@@ -396,18 +375,29 @@ def main(BIDS_dir, filename, log_neptune):
     glm_plot_dir = glm_dir / 'plots' / folder_tag
     glm_plot_dir.mkdir(parents=True, exist_ok=True)
 
-    if log_neptune:
-        run = neptune.init_run(project="forest-neurotech/auto-registration-glm",
+    # initialize neptune run
+    if log_neptune_flag:
+        log_neptune = neptune.init_run(project="forest-neurotech/auto-registration-glm",
                                 name=filename,
                                 )
-        run["sys/tags"].add([exp_id['run'], exp_id['acq']])
-        run["sys/group_tags"].add([exp_id['sub'], exp_id['sub_type'], exp_id['ses']])
-        run["metadata"] = stringify_unsupported(metadata)
-        run["outputs/n_frames"] = n_frames
-        run["metadata/exp_id"] = exp_id
-    
+        log_neptune["sys/tags"].add([exp_id['run'], exp_id['acq']])
+        log_neptune["sys/group_tags"].add([exp_id['sub'], exp_id['sub_type'], exp_id['ses']])
+        log_neptune["outputs/n_images"] = n_images
+        log_neptune["metadata"] = stringify_unsupported(metadata)
+        for key, value in exp_id.items():
+            if key in ['run', 'acq']:
+                log_neptune["metadata/" + key] = int(value[4:]) # only the number
+            else:
+                log_neptune["metadata/" + key] = value
+    else:
+        log_neptune = None
+
     # Define the list of params to be used in this analysis
-    param_c, param_reg, param_glm = set_params(n_frames)
+    param_c, param_reg, param_glm = set_params(n_images)
+
+    #################################################################
+    #                        Main pipeline                          #
+    #################################################################
 
     # Run the analysis pipeline
     el = 0 # elevation
@@ -415,27 +405,32 @@ def main(BIDS_dir, filename, log_neptune):
 
     ## 1. In-plane clustering
     embedding, pred_labels, centroids, closest_points_in_plane = \
-        run_in_plane_clustering(fusi_data, param_c, reg_plot_dir, 
-                                log_neptune, run)
+        run_in_plane_clustering(fusi_data, param_c, reg_plot_dir, log_neptune)
 
     ## 2. Image registration
     nifti_data, extra, final_ref_frame = \
     run_registration(fusi_data, metadata, pred_labels, closest_points_in_plane, param_reg, 
-                                                    reg_plot_dir, filename, log_neptune, run)
+                                                    reg_plot_dir, filename, log_neptune)
     
     ### 2.5 need input from both clustering and registration
     plot_embedding_clusters(embedding, pred_labels, centroids, final_ref_frame, reg_plot_dir, 
-                            log_neptune, run)
+                            log_neptune)
 
     ## 3. GLM analysis
     run_glm(nifti_data, task_events, extra, metadata, param_glm, glm_zmap_dir, glm_plot_dir, 
-            log_neptune, run)
+            log_neptune)
 
+    ## 3.5 GLM analysis (repeat without transform values in design matrix)
+    param_glm["apply_transform_in_design_mtx"] = False
+    run_glm(nifti_data, task_events, extra, metadata, param_glm, glm_zmap_dir, glm_plot_dir, 
+            log_neptune)
+    
+    # End of analysis
     print(f'Analysis for {filename} is completed.')
     
     # End neptune run
-    if log_neptune:
-        run.stop()
+    if log_neptune_flag:
+        log_neptune.stop()
 
 if __name__ == '__main__':
 
@@ -460,7 +455,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     BIDS_dir = args.BIDS_dir
     run_id = args.run
-    log_neptune = args.neptune
+    log_neptune_flag = args.neptune
 
     # If NIFTI has not been parsed in to fUSI_BIDS format, use the following line on terminal to parse data:
     # ```python fUSI_to_BIDS_session.py /2024-06-13/UCLA_006/ --root /cassini/UCLA_collaboration```
@@ -478,7 +473,7 @@ if __name__ == '__main__':
     for filename in filenames:
         try:
             print('\n'+'='*100+'\n')
-            main(BIDS_dir, filename, log_neptune)
+            main(BIDS_dir, filename, log_neptune_flag)
         except Exception as e:
             print(f'Error in processing {filename}: {e}, skipping to next file...')
             continue

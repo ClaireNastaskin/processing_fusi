@@ -19,61 +19,62 @@ from nilearn.maskers import NiftiSpheresMasker
 from nilearn.reporting import get_clusters_table
 from sklearn.metrics import r2_score
 
-# def unpack_parameters(sequence: str):
-#     parts = sequence.split('_')
-#     # Initialize a dictionary to store the parameter values
-#     parameters = {}
-#     # Iterate through the parts and extract the parameter values
-#     for part in parts:
-#         # Use regular expressions to match the parameter name and value
-#         match = re.match(r'^(\w+)(\d+(?:p\d+)?)([a-zA-Z]*)$', part)
-#         if match:
-#             name, value, unit = match.groups()
-#             # Convert the value to the appropriate data type
-#             if 'p' in value:
-#                 value = value.replace('p', '.')
-#             if name in ['tx_freq_hz', 'num_angles', 'tx_cycles', 'num_chip_repeats', 'num_imaging_loops']:
-#                 value = int(value)
-#             elif name in ['tgc_initial_gain_db', 'tgc_final_gain_db', 'tgc_duration', 'Dmin', 'Dmax', 'el']:
-#                 value = float(value)
-#             # Store the parameter name and value in the dictionary
-#             parameters[name] = value
-#     return parameters
+# OUTDATED (params stored in metadata.json rather than relying on sequence name)
+def unpack_parameters(sequence: str):
+    parts = sequence.split('_')
+    # Initialize a dictionary to store the parameter values
+    parameters = {}
+    # Iterate through the parts and extract the parameter values
+    for part in parts:
+        # Use regular expressions to match the parameter name and value
+        match = re.match(r'^(\w+)(\d+(?:p\d+)?)([a-zA-Z]*)$', part)
+        if match:
+            name, value, unit = match.groups()
+            # Convert the value to the appropriate data type
+            if 'p' in value:
+                value = value.replace('p', '.')
+            if name in ['tx_freq_hz', 'num_angles', 'tx_cycles', 'num_chip_repeats', 'num_imaging_loops']:
+                value = int(value)
+            elif name in ['tgc_initial_gain_db', 'tgc_final_gain_db', 'tgc_duration', 'Dmin', 'Dmax', 'el']:
+                value = float(value)
+            # Store the parameter name and value in the dictionary
+            parameters[name] = value
+    return parameters
+
+# OUTDATED
+def load_and_preprocess_data(dm: utils.DirectoryManager, event_time_offset: float, num_tissue_components: int, apply_image_registration: bool) -> tuple:
+    """
+    Load and preprocess fUSI data.
+
+    Args:
+        dm (DirectoryManager): Directory manager for the fUSI data.
+        event_time_offset (float): Offset in seconds to apply to stimulus
+        num_tissue_components (int): Number of tissue components.
+        apply_image_registration (bool): Whether to apply image registration.
+
+    Returns:
+        tuple: A tuple containing the preprocessed fUSI data, events, and transformations (if applicable).
+    """
+    fusi_info = utils.load_fUSi_info(dm.power_doppler_path, num_tissue_components=num_tissue_components)
+    task_info = utils.extract_events_from_h5(dm.task_event_file_path)
+    events = utils.calculate_stimulus_events_caltech_daq(task_info)
+    events['onset'] += event_time_offset
+
+    frame_indices = -1
+    fusi_data = utils.get_fusi_frames(dm.power_doppler_path, fusi_info, frame_indices)
+
+    transformations = None
+    if apply_image_registration:
+        fusi_data_3d = fusi_data[:, 0, :, :]
+        fusi_data_3d_reg, transformations = utils.register_image_stack(fusi_data_3d)
+        fusi_data_3d_reg_expanded = np.expand_dims(fusi_data_3d_reg, axis=1)
+        fusi_data = np.tile(fusi_data_3d_reg_expanded, (1, 2, 1, 1))
+
+    return fusi_data, fusi_info, events, transformations
 
 
-# def load_and_preprocess_data(dm: utils.DirectoryManager, event_time_offset: float, num_tissue_components: int, apply_image_registration: bool) -> tuple:
-#     """
-#     Load and preprocess fUSI data.
-
-#     Args:
-#         dm (DirectoryManager): Directory manager for the fUSI data.
-#         event_time_offset (float): Offset in seconds to apply to stimulus
-#         num_tissue_components (int): Number of tissue components.
-#         apply_image_registration (bool): Whether to apply image registration.
-
-#     Returns:
-#         tuple: A tuple containing the preprocessed fUSI data, events, and transformations (if applicable).
-#     """
-#     fusi_info = utils.load_fUSi_info(dm.power_doppler_path, num_tissue_components=num_tissue_components)
-#     task_info = utils.extract_events_from_h5(dm.task_event_file_path)
-#     events = utils.calculate_stimulus_events_caltech_daq(task_info)
-#     events['onset'] += event_time_offset
-
-#     frame_indices = -1
-#     fusi_data = utils.get_fusi_frames(dm.power_doppler_path, fusi_info, frame_indices)
-
-#     transformations = None
-#     if apply_image_registration:
-#         fusi_data_3d = fusi_data[:, 0, :, :]
-#         fusi_data_3d_reg, transformations = utils.register_image_stack(fusi_data_3d)
-#         fusi_data_3d_reg_expanded = np.expand_dims(fusi_data_3d_reg, axis=1)
-#         fusi_data = np.tile(fusi_data_3d_reg_expanded, (1, 2, 1, 1))
-
-#     return fusi_data, fusi_info, events, transformations
-
-
-def create_design_matrix(fusi_info: dict, events: dict, transformations: np.ndarray, 
-apply_image_registration: bool) -> np.ndarray:
+def create_design_matrix(time_stamp, events: dict, transformations: np.ndarray, 
+apply_transform_in_design_mtx: bool, hrf_model="glover") -> np.ndarray:
     """
     Create the design matrix for GLM analysis.
 
@@ -81,31 +82,33 @@ apply_image_registration: bool) -> np.ndarray:
         fusi_info (dict): Dictionary containing fUSI information.
         events (dict): Dictionary containing event information.
         transformations (np.ndarray): Array containing image transformations.
-        apply_image_registration (bool): Whether image registration was applied.
+        apply_transform_in_design_mtx (bool): Whether image registration was applied.
 
     Returns:
         np.ndarray: The design matrix.
     """
-    hrf_model = "glover"
-    if apply_image_registration:
+
+    if apply_transform_in_design_mtx:
+        design_matrix_name = 'yes_transform_design_mtx'
         design_matrix = make_first_level_design_matrix(
-            fusi_info['Experiment Time'],
+            time_stamp,
             events,
             drift_model="polynomial",
             drift_order=1,
-            add_regs=transformations.transpose(),
+            add_regs=transformations,
             add_reg_names=["tx", "ty", "rot"],
             hrf_model=hrf_model,
         )
     else:
+        design_matrix_name = 'no_transform_design_mtx'
         design_matrix = make_first_level_design_matrix(
-            fusi_info['Experiment Time'],
+            time_stamp,
             events,
             drift_model="polynomial",
             drift_order=1,
             hrf_model=hrf_model,
         )
-    return design_matrix
+    return design_matrix, design_matrix_name
 
 
 def perform_glm_analysis(nifti_data, design_matrix: np.ndarray, output_path: Path, smoothing_fwhm: float) -> tuple:
@@ -136,6 +139,7 @@ def perform_glm_analysis(nifti_data, design_matrix: np.ndarray, output_path: Pat
                                 )
     fmri_glm = fmri_glm.fit(nifti_data, design_matrices=design_matrix)
 
+    # TO-DO: Add more contrasts? Why is pwm_enabled specifically chosen?
     z_map = fmri_glm.compute_contrast(basic_contrasts['pwm_enabled'], output_type="stat")
     max_tstat = np.max(z_map.get_fdata())
 
@@ -145,15 +149,15 @@ def perform_glm_analysis(nifti_data, design_matrix: np.ndarray, output_path: Pat
     return fmri_glm, z_map, max_tstat
 
 
-def plot_results(fmri_glm, z_map: np.ndarray, dm: utils.DirectoryManager, sequence: str):
+def plot_results(fmri_glm, z_map: np.ndarray, output_file: Path, title: str ="pwm_enabled"):
     """
     Plot the GLM analysis results.
 
     Args:
         fmri_glm: The fitted GLM model.
         z_map (np.ndarray): The computed z-map.
-        dm (DirectoryManager): Directory manager for the fUSI data.
-        sequence (str): The sequence name.
+        output_file (Path): The output file path.
+        title (str, optional): The title of the plot.
     """
     mean_image = mean_img(fmri_glm.masker_.mask_img_)
     plotting.plot_stat_map(
@@ -162,10 +166,9 @@ def plot_results(fmri_glm, z_map: np.ndarray, dm: utils.DirectoryManager, sequen
         threshold=3,
         display_mode="y",
         black_bg=True,
-        title="pwm_enabled contrast",
+        title=title,
+        output_file=output_file,
     )
-    plt.savefig(dm.fUSI_data_path / f"tstat_map_{sequence}.png")
-    plt.close()
 
 
 def get_ROI_activation(nifti_data, fmri_glm, design_matrix, basic_contrasts, time_stamp, events, param_glm, output_file=None):
@@ -286,14 +289,9 @@ def main(base_path: Path, sequence: str, event_time_offset: float, apply_image_r
     """
     dm = utils.DirectoryManager(base_path, sequence)
     parameters = unpack_parameters(sequence)
-    dm.dvclive_dir = dm.sequence_data_path / "metrics"
-    dm.dvclive_dir.mkdir(parents=True, exist_ok=True)
-    with Live(dm.dvclive_dir) as live:
-        # Log the unpacked parameter values to DVC Live using the dictionary
-        for name, value in parameters.items():
-            live.log_param(name, value)
     fusi_data, fusi_info, events, transformations = load_and_preprocess_data(dm, event_time_offset, num_tissue_components, apply_image_registration)
-    design_matrix = create_design_matrix(fusi_info, events, transformations, apply_image_registration)
+    time_stamp = fusi_info['VolumeTiming']
+    design_matrix = create_design_matrix(time_stamp, events, transformations, apply_image_registration)
     fmri_glm, z_map, max_tstat = perform_glm_analysis(fusi_data, design_matrix, dm, smoothing_fwhm)
     print(f"Maximum t-stat value: {max_tstat}")
     if plot_figures:

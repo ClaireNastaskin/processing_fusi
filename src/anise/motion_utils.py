@@ -85,6 +85,7 @@ def boxcar_smooth(data, window_size):
         end_index = min(data.shape[-1], t + window_size // 2 + 1)
         smoothed_data[..., t] = np.mean(data[..., start_index:end_index], axis=-1)
     return smoothed_data
+
 # phase correlation related
 def phase_corr_translation(im1, im2):
     
@@ -516,11 +517,12 @@ def plot_embedding(embedding, labels=None, title='', legend='on',
     if labels is None:
         # labels not given, assign all to in-plane
         labels = np.zeros((embedding.shape[0], ), dtype=np.int32)
+        embedding_new = embedding
         legend = 'off'
     else:
         order = np.argsort(labels)
         labels = labels[order]
-        embedding = embedding[order]
+        embedding_new = embedding[order]
 
     colors = ['g', 'c', 'm', 'y', 'k', 'b']
     label_classes = {}
@@ -541,7 +543,7 @@ def plot_embedding(embedding, labels=None, title='', legend='on',
     fig, ax = plt.subplots(figsize=(4,3))
     ax.set_prop_cycle('color', colors)
     for l in unique_labels:
-        ax.scatter(embedding[labels == l, 0],embedding[labels == l, 1],s=5,label=label_classes[l])
+        ax.scatter(embedding_new[labels == l, 0],embedding_new[labels == l, 1],s=5,label=label_classes[l])
     plt.gca().set_aspect('equal', 'datalim')
     if len(centroids) > 0:
         plt.scatter(centroids[:, 0], centroids[:, 1], c='k', s=100, marker='x')
