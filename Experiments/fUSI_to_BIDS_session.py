@@ -3,11 +3,12 @@ from pathlib import Path
 from anise.gui import MakeAnimation
 from anise.SessionLoader import SessionLoader
 import argparse
+import pandas as pd
 
-def main(root: Path, base_path: Path, run_id, save_output_locally=False):
+def main(root: Path, base_path: Path, run_id, save_output_locally=False, save_Bmode=False):
     """
     Main function to process fUSI data and save to BIDS format, along with task info and movies
-    It will process all runs within the base_path and save the output to the output_path
+    It will process all runs within the base_path and save the output to the out_dir
     
     Parameters
     ----------
@@ -28,10 +29,29 @@ def main(root: Path, base_path: Path, run_id, save_output_locally=False):
 
     # define output path to save data, plots, and videos
     if save_output_locally:
-        output_path = Path.home() / "Downloads" / "UCLA_fUSI_BIDS"  # save to user defined location e.g. (/Downloads folder)
+        out_dir = Path.home() / "Downloads" / "UCLA_fUSI_BIDS"  # save to user defined location e.g. (/Downloads folder)
     else:
         # default to save in the same root folder
-        output_path = root / "UCLA_fUSI_BIDS"
+        out_dir = root / "UCLA_fUSI_BIDS"
+
+    overwrite = False # TEMPORARY
+
+    # Init scan files
+    # create output directories if not exist
+    if (out_dir / 'experiment_data.csv').exists() and not overwrite:
+        df = pd.read_csv(out_dir / 'experiment_data.csv')
+    else:
+        df = pd.DataFrame(columns=[
+            'power_doppler_path',
+            'bmode_fname', 'power_doppler_fname',
+            'bmode_img_fname', 'power_doppler_img_fname',
+            'dataset', 'sub', 'run', 'sequence', 'plane', 'n_tissue_components',
+            'angles', 'frequency', 'az_aperture', 'el_aperture',
+            'gain', 'power_mode', 'cycles', 'metadata'])
+    if (out_dir / 'excluded_data.csv').exists() and not overwrite:
+        df_ex = pd.read_csv(out_dir / 'excluded_data.csv')
+    else:
+        df_ex = pd.DataFrame(columns=['power_doppler_path', 'reason'])
 
     # loop over runs
     for i, run in enumerate(runs):
@@ -51,10 +71,11 @@ def main(root: Path, base_path: Path, run_id, save_output_locally=False):
             #################################################################
 
             # Find path using sessionLoader
-            ses = SessionLoader(root, base_path / run, acqusition_id, output_path=output_path)
+            ses = SessionLoader(root, base_path / run, acqusition_id, output_path=out_dir)
             
             num_sequence_folders = len(ses.sequence_folders)
             acqusition_id += 1
+            seq = ses.sequence
             
             #################################################################
             #                Load and save power doppler                    #
@@ -92,43 +113,100 @@ def main(root: Path, base_path: Path, run_id, save_output_locally=False):
                     # adjust task events onset time
                     ses.task_events['onset'] = ses.task_events['onset'] - behavior_offset
                     print(ses.task_events)
+                
+                # get sidecar json metadata
+                ses.get_sidecar_json()
+
+                filter = ses.sidecar['ClutterFilters'][0]['FilterType'].lower()
+                sub = ses.subject_id
+                task = ses.task_name
+                run = ses.run
+                acq = ses.acqusition_id
+                plane = ses.plane
+                if ses.plane is not None:
+                    bmode_base = (f'sub-{sub}_task-{task}_run-{run}_acq-{acq}_pose-{plane}')
+                    pd_base = (bmode_base + f'_proc-{filter}{n_tc}ntc')
+                else:          
+                    bmode_base = (f'sub-{sub}_task-{task}_run-{run}_acq-{acq}')
+                    pd_base = (bmode_base + f'_proc-{filter}{n_tc}ntc')
+
+                # make directories
+                bmode_dir = out_dir / 'rawdata' / f'sub-{sub}' / f'ses-{ses}' / 'fus'
+                bmode_img_dir = out_dir / 'derivatives' / 'bmode_images' / f'sub-{sub}' / f'ses-{ses}'
+                fus_dir = out_dir / 'sourcedata' / f'sub-{sub}' / f'ses-{ses}' / 'fus'
+                fus_img_dir = out_dir / 'derivatives' / 'power_doppler_images' / 'sub-{rat}' / f'ses-{ses}'
+                beh_dir = out_dir / 'sourcedata' / f'sub-{sub}' / f'ses-{ses}' / 'beh'
+                for this_dir in (bmode_dir, bmode_img_dir, fus_dir, fus_img_dir, beh_dir):
+                    this_dir.mkdir(parents=True, exist_ok=True)
 
                 #################################################################
                 #                          save outputs                         #
                 #################################################################
 
-                fus_dir = ses.output_path / 'sourcedata' / f'sub-{ses.subject_id}' / f'ses-{ses.session_id}' / 'fus'
-                beh_dir = ses.output_path / 'sourcedata' / f'sub-{ses.subject_id}' / f'ses-{ses.session_id}' / 'beh'
+                # save to NIFTI and metadata out_dir
+                pd_filename = ses.save_to_nifti(fusi_data, fus_dir, pd_base)
+                pd_img_fname = ''
 
-                # save to NIFTI and metadata output_path
-                _, filename = ses.save_to_nifti(fusi_data, output_path=fus_dir)
+                # save task events
+                ses.save_task_events(beh_dir, pd_base + '_events.tsv')
+
+                #################################################################
+                #           Load and save B-mode images (optional)              #
+                #################################################################
+
+                if save_Bmode:
+                    bmode_filename = bmode_dir / (bmode_base + '_idx-0_bmode.h5')
+                    bmode_img_fname = bmode_img_dir / f'{bmode_base.format(acq=acq)}_bmode.png'
+                else:
+                    bmode_filename = ''
+                    bmode_img_fname = ''
+
+                # save scan info
+                sidecar = ses.sidecar
+                df.loc[len(df.index)] = (
+                    ses.power_doppler_path,
+                    bmode_filename,
+                    fus_dir / pd_filename,
+                    bmode_img_fname, 
+                    pd_img_fname,
+                    ses, sub, run, seq, plane, n_tc,
+                    sidecar['PlaneWaveAngles'],
+                    sidecar['ProbeCentralFrequency'],
+                    sidecar['TxApertureMask'],
+                    sidecar['TxElevationMask'],
+                    sidecar['Gain'],
+                    sidecar['AFE'],
+                    sidecar['TxCycles'],
+                    sidecar
+                )
+                df.to_csv(out_dir / 'experiment_data.csv', index=False)
+                df_ex.to_csv(out_dir / 'excluded_data.csv', index=False)
                 
-                # save task events (need to run after save_to_nifti for self.output_filename)
-                ses.save_task_events(output_path=beh_dir)
-
                 #################################################################
                 #           Display and save power doppler movie                #
                 #################################################################
 
-                file_path = ses.output_path / 'derivatives' / 'registration' / f'sub-{ses.subject_id}' / f'ses-{ses.session_id}'
+                file_path = ses.out_dir / 'derivatives' / 'registration' / f'sub-{ses.subject_id}' / f'ses-{ses.session_id}'
                 file_path.mkdir(parents=True, exist_ok=True)
                 if fusi_data is not None:
+                    # mp4
                     ani = MakeAnimation(fusi_data[:, 0], 
-                                        output_file=str( file_path / f'{filename}_before.mp4'),  # mp4
+                                        output_file=str( file_path / f'{pd_filename}_before.mp4'),
                                         fps=10, 
                                         depth=ses.sidecar['Depth'], 
                                         lateral=ses.sidecar['Lateral'], 
                                         time=ses.sidecar['VolumeTiming'],
-                    )
-
+                                        )
+                    # gif
                     ani = MakeAnimation(fusi_data[:, 0],
-                                        output_file=str(file_path / f'{filename}_before.gif'), # gif
+                                        output_file=str(file_path / f'{pd_filename}_before.gif'),
                                         fps=10, 
                                         depth=ses.sidecar['Depth'], 
                                         lateral=ses.sidecar['Lateral'], 
                                         time=ses.sidecar['VolumeTiming'],
-                    )
+                                        )
                 print(f'saved movies to {file_path}')
+
     print(f'Finish scanning run {run}.')
 
 if __name__ == '__main__':

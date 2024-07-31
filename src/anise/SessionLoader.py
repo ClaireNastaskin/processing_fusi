@@ -579,24 +579,20 @@ class SessionLoader:
         return imgs
 
     ### Save functions
-    def save_to_nifti(self, data, output_path=None, filename_tag=''):
+    def save_to_nifti(self, data, output_path: Path, filename_base: str, filename_tag=''):
         """
         Saves the power doppler data to a NIFTI file.
         
         Args:
         data (np.array): The power doppler data to save.
-        output_path (str): The path to save the NIFTI file. If None, the file will be saved in the output folder.
-        
+        output_path (Path): The path to save the NIFTI file.
+        filename_base (str): The base name of the NIFTI file.
+        filename_tag (str): The tag to add to the filename.
+
         Returns:
-        output_path: The path to the saved NIFTI file.
         filename: The name of the saved NIFTI file ()
 
         """
-        if output_path is None:
-            output_path = self.output_path
-        else:
-            output_path = Path(output_path)
-                
         if output_path is not None and not output_path.exists():
             try:
                 output_path.mkdir(parents=True, exist_ok=True)
@@ -623,39 +619,18 @@ class SessionLoader:
                                     affine=affine,
                                     header=hdr)
         
-        # get sidecar json metadata
-        self.get_sidecar_json()
-        
         # save the nifti file
         if filename_tag:
             filename_tag = '_' + filename_tag
         
-        filter = self.sidecar['ClutterFilters'][0]['FilterType'].lower()
-
-        if self.plane is not None:
-            self.output_filename = (f'sub-{self.subject_id}_'
-                        f'task-{self.task_name}_'
-                        f'run-{self.run}_'
-                        f'acq-{self.acqusition_id}_'
-                        f'pose-{self.plane}_'
-                        f'proc-{filter}_{self.num_tissue_components}'
-                        )
-        else:          
-            self.output_filename = (f'sub-{self.subject_id}_'
-                        f'task-{self.task_name}_'
-                        f'run-{self.run}_'
-                        f'acq-{self.acqusition_id}_'
-                        f'proc-{filter}_{self.num_tissue_components}'
-                        )
-            
-        filename = self.output_filename + '_pwdt' + filename_tag
+        filename = filename_base + '_pwdt' + filename_tag
         nifti_img.to_filename(output_path / (filename + '.nii.gz'))
         print(f'Output location: {output_path}')
         print(f'Saved PD NIFTI file as: {filename}.nii.gz')
         
         # save metadata as a json
         self.save_sidecar_json(output_path, filename)
-        return output_path, filename
+        return filename
 
     def get_sidecar_json(self):
         # TODO: add bmode dataframe by reading in all the bmode files
@@ -696,23 +671,20 @@ class SessionLoader:
                                          institution_address=institution_address,
                                          institutional_department_name=institution_dept)
 
-    def save_sidecar_json(self, output_path, filename):
+    def save_sidecar_json(self, output_path: Path, filename: str):
         # Save metadata as a json if it exists
         if self.sidecar is not None:
             with open(output_path / f'{filename}.json', 'w') as f:
                 f.write(json.dumps(self.sidecar, indent=4))
         print(f'Saved sidecar json as: {filename}.json')
     
-    def save_task_events(self, output_path=None):
+    def save_task_events(self, output_path: Path, filename: str):
         # save probe_events to csv
-        if output_path is not None and not output_path.exists():
+        if output_path.parent is not None and not output_path.exists():
             try:
                 output_path.mkdir(parents=True, exist_ok=True)
             except PermissionError:
-                print('\nWarning: You DO NOT have write access to the base path. Please provide a different output path.')
-                output_path = None
+                print('\nWarning: You DO NOT have write access to the output path.')
                 return
-        filename = self.output_filename + '_events.tsv'
         self.task_events.to_csv(output_path / filename, sep='\t', index=False)
-        print(f'Output location: {output_path}')
-        print(f'Saved task events as:   {filename}')
+        print(f'Saved task events as: {filename}')
