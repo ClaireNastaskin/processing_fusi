@@ -10,13 +10,42 @@ from silx.io.dictdump import h5todict
 import SimpleITK as sitk
 
 
-def get_sidecar(bmode_h5, pwd_h5, time_stamps, 
-                n_tc=None,
-                task_name='',
-                task_description='',
-                institution_name='',
-                institution_address='',
-                institutional_department_name=''):
+def get_bids_value(bids_path, keyword):
+    """Get the keyword value of a BIDS named file.
+
+    Parameters
+    ----------
+    bids_path : pathlib.Path
+        The path to the BIDS file.
+    keyword : str
+        The keyword to search for.
+
+    Returns
+    -------
+    value : str
+        The value of the BIDS file for the keyword.
+    """
+    parts = bids_path.stem.split('.')[0].split('_')
+    for part in parts:
+        if len(part.split('-')) == 2:
+            key, value = part.split('-')
+            if keyword == key:
+                return value
+    sidecar_path = bids_path.parent / (bids_path.name.split('.')[0] + '.json')
+    if sidecar_path.exists():
+        with open(sidecar_path, 'r') as fid:
+            sidecar = json.load(fid)
+        if keyword in sidecar:
+            return sidecar[keyword]
+    raise RuntimeError(f'No keyword "{keyword}" found in {bids_path}')
+
+
+def get_sidecar(bmode_h5, pwd_h5, time_stamps, n_tc,
+                task_name='light',
+                task_description='Blue LED, flashing at 5Hz',
+                institution_name='Caltech',
+                institution_address='1200 E California Blvd, Pasadena, CA 91125',
+                institutional_department_name='Neuroscience - Biology and Biological Engineering'):
     
     metadata_bmode = h5todict(bmode_h5, path='/metadata')
     metadata_pwd = h5todict(pwd_h5)
@@ -163,6 +192,12 @@ def get_sidecar(bmode_h5, pwd_h5, time_stamps,
     )
     return sidecar
 
+
+def raw_to_power_doppler(raw_frame_path):
+    """Raw data to power doppler."""
+    pass
+
+
 def get_param(param: str, fname: str, reverse: bool=False) -> str:
     """Get the tissue components from an ensemble file.
 
@@ -213,7 +248,6 @@ def match_param(param: str, path_dir: Path) -> str:
     val : str
         The value of the parameter.
     """
-    param = param.lower()
     matches = [part[len(param) + 1:] for part in
                path_dir.parts if part.lower().startswith(param)]
     if len(matches) == 1:
@@ -324,3 +358,231 @@ def save_nifti_to_BIDS(output_path, data, filename=None, filename_tag='register'
     nifti_img.to_filename(output_path / (filename + '.nii.gz'))
     print(f'Saved NIFTI file as:    {output_path}/{filename}.nii.gz')
     return filename
+
+def load_fusi_info(directory, **kwargs):
+    """
+    Scans the specified directory for h5 files, extracts timestamps
+    from the filenames, and organizes this information into a DataFrame. 
+    The DataFrame is sorted by timestamps and includes columns for
+    relative experiment times and readable timestamps.
+    
+    Args:
+    directory (str): The directory where the h5 files are stored.
+    
+    Returns:
+    DataFrame: A DataFrame containing the filenames, original timestamps,
+               experiment relative times, and readable timestamps.
+    """
+    filenames = [f.name for f in Path(directory).glob('*.h5') if
+                 not f.name.startswith('.')]
+
+    for param, value in kwargs.items():
+        filenames = [f for f in filenames if get_param(param, f) == value]
+
+    # fix bug where duplicates with and without ensemble prefix
+    if any([f.startswith('ensemble') for f in filenames]):
+        filenames = [f for f in filenames if f.startswith('ensemble')]
+
+    if not filenames:
+        return
+
+    print(filenames)
+    # Extract datetime from filenames and store data
+    data = []
+    for filename in filenames:
+        timestamp = re.search(r'\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{6}', filename)
+        timestamp
+        if timestamp:
+            data.append({
+                'Filename': filename,
+                'Timestamp': pd.to_datetime(timestamp.group(0).replace('-', ':'),
+                                            format='%Y:%m:%dT%H:%M:%S:%f')
+            })
+
+    df = pd.DataFrame(data)
+    # Sort the DataFrame by the 'Timestamp' column
+    df = df.sort_values(by='Timestamp')
+
+    # Calculate the relative times since the first event
+    df['Experiment Time'] = \
+        (df['Timestamp'] - df['Timestamp'].iloc[0]).dt.total_seconds()
+
+    # Toss first acquisition if well before second
+    if len(df) > 1 and (df.iloc[1]['Experiment Time'] -
+                        df.iloc[0]['Experiment Time']) > 10:
+        df = df.iloc[1:]  # toss first acquisition
+
+    # format excluding the date and keeping the first digit of milliseconds
+    df['Readable Timestamp'] = \
+        df['Timestamp'].dt.strftime('%H:%M:%S.%f').str[:-5]
+
+    # reset ordering
+    df = df.reset_index().drop(columns=['index'])
+
+    return df
+
+
+''' Fix me: need to figure out shape of raw data to get this to work
+def get_raw_nii(raw_path):
+    """Fetches the data from raw frames.
+
+    Args:
+    raw_path (str): The raw frame directory path.
+
+    Returns:
+    nib.Nifti1Image: The data from the bmode images.
+    np.ndarray: The time stamps of the images.
+    """
+    raw_info = load_fusi_info(raw_path)
+    data = list()
+    tr = None
+    for file_path in bmode_info['Filename']:
+        with h5py.File(file_path, 'r') as file:
+            data.append(file['beamformed'][:])
+            assert tr is None or file['metadata']['sequence'][
+                'compound_bmode_repetition_interval_s'][()] == tr
+            tr = file['metadata']['sequence'][
+                'compound_bmode_repetition_interval_s'][()]
+    n_loops = data[0].shape[0]
+    data = np.flip(np.vstack(data).transpose((1, 2, 3, 0)), axis=2)
+    time_stamps = np.array([t + tr * i for t in bmode_info['Experiment Time']
+                            for i in range(n_loops)])
+    return nib.Nifti1Image(data, np.diag([0.15, 0.15, 0.15, 1])), time_stamps
+'''
+
+
+def get_bmode_nii(bmode_path):
+    """Fetches the data from bmode files.
+
+    Args:
+    bmode_path (str): The bmode directory path.
+
+    Returns:
+    nib.Nifti1Image: The data from the bmode images.
+    np.ndarray: The time stamps of the images.
+    """
+    bmode_info = load_fusi_info(bmode_path)
+    data = list()
+    tr = None
+    for file_name in bmode_info['Filename']:
+        with h5py.File(bmode_path / file_name, 'r') as file:
+            data.append(file['beamformed'][:])
+            assert tr is None or file['metadata']['sequence'][
+                'compound_bmode_repetition_interval_s'][()] == tr
+            tr = file['metadata']['sequence'][
+                'compound_bmode_repetition_interval_s'][()]
+    n_loops = data[0].shape[0]
+    data = np.flip(np.vstack(data).transpose((1, 2, 3, 0)), axis=2)
+    time_stamps = np.array([t + tr * i for t in bmode_info['Experiment Time']
+                            for i in range(n_loops)])
+    return nib.Nifti1Image(data, np.diag([0.15, 0.15, 0.15, 1])), time_stamps
+
+
+def get_power_doppler_nii(power_doppler_path, num_tissue_components):
+    """Fetches the data from power doppler files.
+
+    Args:
+    power_doppler_path (str): The directory where the h5 files are stored.
+
+    Returns:
+    nib.Nifti1Image: The data from the power doppler images.
+    np.ndarray: The time stamps for the start of the image.
+    """
+    fusi_info = load_fusi_info(
+        power_doppler_path, num_tissue_components=num_tissue_components)
+    fusi_data = get_fusi_frames(power_doppler_path, fusi_info)
+    return (nib.Nifti1Image(fusi_data, np.diag([0.15, 0.15, 0.15, 1])),
+            fusi_info['Experiment Time'])
+
+
+def get_fusi_frames(power_doppler_path, power_doppler_df, frame_indices=-1):
+    """
+    Fetches the data from specific frames in the h5 files based on the list of frame indices.
+    
+    Args:
+    power_doppler_path (str): The directory where the h5 files are stored.
+    power_doppler_df (DataFrame): DataFrame containing the filenames and timestamps.
+    frame_indices (list of int): The indices of the frames to fetch.
+    
+    Returns:
+    np.array: The data from the specified frames in the h5 files,
+              stacked along the last dimension.
+    """
+    # Check if all frame_indices are valid
+    if frame_indices == -1:
+        frame_indices = list(range(len(power_doppler_df)))
+    elif any(frame_index < 0 or frame_index >= len(power_doppler_df)
+             for frame_index in frame_indices):
+        raise ValueError("One or more invalid frame indices")
+    
+    # Initialize a list to hold the data arrays
+    data_list = []
+
+    for frame_index in frame_indices:
+        # Get the filename for the desired frame
+        filename = power_doppler_df.iloc[frame_index]['Filename']
+        file_path = Path(power_doppler_path) / filename
+        # Load the h5 file
+        with h5py.File(file_path, 'r') as file:
+            data = file['power_doppler'][:]
+            data_list.append(data)
+    
+    # Stack the data arrays along the last dimension,
+    # reorient third dimension correctly
+    stacked_data = np.flip(np.stack(data_list, axis=-1), axis=2)
+
+    return stacked_data
+
+
+def register_image_stack(image_stack):
+    sitk_images = [sitk.GetImageFromArray(image_stack[..., i])
+                   for i in range(image_stack.shape[-1])]
+    fixed_image = sitk_images[0]
+    registered_images = [fixed_image]
+    
+    # Array to store transformation parameters: [tx, ty, angle, 1]
+    transform_params = np.zeros((3, image_stack.shape[-1]))  # Initialize with zeros
+    transform_params[0, :] = 0  # If the last row is unused, set it to 1 or some default value
+
+    # Setup registration method to be more constrained
+    registration_method = sitk.ImageRegistrationMethod()
+    registration_method.SetMetricAsCorrelation()  # Using correlation metric for small motions
+    registration_method.SetOptimizerAsRegularStepGradientDescent(
+        learningRate=0.1, minStep=1e-4, numberOfIterations=100)
+    registration_method.SetOptimizerScalesFromPhysicalShift()
+    registration_method.SetInterpolator(sitk.sitkLinear)
+    
+    initial_transform = sitk.Euler2DTransform()
+    initial_transform.SetIdentity()
+    registration_method.SetInitialTransform(initial_transform)
+
+    # Apply registration
+    for i, moving_image in enumerate(sitk_images[1:], start=1):
+        # Set a tighter initial transform using moments
+        initial_transform = sitk.Euler2DTransform(
+            sitk.CenteredTransformInitializer(
+                fixed_image, moving_image, sitk.Euler2DTransform(),
+                sitk.CenteredTransformInitializerFilter.MOMENTS
+            )
+        )
+        registration_method.SetInitialTransform(initial_transform)
+
+        final_transform = registration_method.Execute(fixed_image, moving_image)
+        tx, ty = final_transform.GetTranslation()
+        angle = final_transform.GetAngle()
+        
+        # Store the transformation parameters
+        transform_params[0, i] = tx
+        transform_params[1, i] = ty
+        transform_params[2, i] = angle
+
+        resampled_image = sitk.Resample(
+            moving_image, fixed_image, final_transform,
+            sitk.sitkLinear, 0.0, moving_image.GetPixelID()
+        )
+        registered_images.append(resampled_image)
+    
+    registered_array = np.stack([sitk.GetArrayFromImage(img)
+                                 for img in registered_images], axis=-1)
+    
+    return registered_array, transform_params
