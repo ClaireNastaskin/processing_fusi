@@ -14,6 +14,7 @@ import anise.process.image_metrics
 import anise.utils
 
 import matplotlib.pyplot as plt
+from PIL import Image
 
 root = Path('fUS_data') / 'fUSI_Rat_acquisition'
 task = 'light'
@@ -54,8 +55,10 @@ with open(out_dir / 'log.txt', "a") as fid:
     for pd_dir in tqdm(pd_dirs):
         if pd_dir in df['power_doppler_path'].values and not overwrite:
             continue
-        if pd_dir in df_ex['power_doppler_path'].values:  # try again
-            df_ex = df_ex.drop(df_ex[df_ex['power_doppler_path'].values == pd_dir].index)
+        if pd_dir in df_ex['power_doppler_path'].values and not overwrite:
+            continue
+            # code to try again
+            # df_ex = df_ex.drop(df_ex[df_ex['power_doppler_path'].values == pd_dir].index)
         ses = pd_dir.relative_to(root).parts[0].replace('-', '')
         this_n_tcs = n_tcs[pd_dir]
 
@@ -145,7 +148,7 @@ with open(out_dir / 'log.txt', "a") as fid:
         bad_idxs = list()
         bmode_data = list()
         for i, filename in enumerate(bmode_info['Filename']):
-            if not h5py.is_hdf5(pd_dir / '..' / 'beamformed' / filename):
+            if not anise.utils.is_valid_hdf5(pd_dir / '..' / 'beamformed' / filename):
                 bad_idxs.append(i)
                 continue
             with h5py.File(pd_dir / '..' / 'beamformed' / filename, 'r') as file:
@@ -195,9 +198,13 @@ with open(out_dir / 'log.txt', "a") as fid:
         bmode_idx = anise.process.image_metrics.find_median_image_idx(bmode_data)
         bmode_img_fname = bmode_img_dir / f'{bmode_base.format(acq=acq)}_bmode.png'
         if overwrite or not bmode_img_fname.exists():
-            copyfile(pd_dir / '..' / 'beamformed' /
-                     bmode_info.loc[bmode_idx, 'Filename'].replace('.h5', '.png'),
-                     bmode_img_fname)
+            for ext in ('png', 'jpg'):
+                bmode_img = pd_dir / '..' / 'beamformed' / \
+                    bmode_info.loc[bmode_idx, 'Filename'].replace('.h5', f'.{ext}')
+                if bmode_img.exists():
+                    break
+            bmode_img = Image.open(bmode_img)
+            bmode_img.save(bmode_img_fname)
 
         """
         with redirect_stdout(fid):
@@ -228,8 +235,11 @@ with open(out_dir / 'log.txt', "a") as fid:
             from_pd_img_fname = power_doppler_infos[n_tc].loc[
                 power_doppler_idx, 'Filename'].replace('.h5', '')
             if overwrite or not pd_img_fname.exists():
-                copyfile(next(pd_dir.glob(f'{from_pd_img_fname}*.png')),
-                        pd_img_fname)
+                pd_img = Image.open(
+                    [f for ext in ('png', 'jpg') for f in
+                     pd_dir.glob(f'{from_pd_img_fname}*.{ext}')][0]
+                )
+                pd_img.save(pd_img_fname)
 
             if overwrite or not (fus_dir / f'{pd_base}_pwdt.nii.gz').exists():
                 # save nii
