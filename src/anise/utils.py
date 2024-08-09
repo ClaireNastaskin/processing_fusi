@@ -10,6 +10,26 @@ from silx.io.dictdump import h5todict
 import SimpleITK as sitk
 
 
+def is_valid_hdf5(fname):
+    """Check if a file is a readable hdf5.
+
+    Parameters
+    ----------
+    fname : pathlib.Path
+        The file path.
+
+    Notes
+    -----
+    ``h5py.is_hdf5`` does not properly handle truncated files.
+    """
+    try:
+        with h5py.File(fname, 'r') as _:
+            pass
+    except:
+        return False
+    return True
+
+
 def get_bids_value(bids_path, keyword):
     """Get the keyword value of a BIDS named file.
 
