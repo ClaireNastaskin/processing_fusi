@@ -172,7 +172,7 @@ def fit_glm_time_shift(power_doppler_img, time_stamps, transformations,
         max_tstat = np.max(zmap.get_fdata())
         max_tstats.append(max_tstat)
 
-        mean_image = mean_img(power_doppler_img)  # fmri_glm.masker_.mask_img_)
+        mean_image = mean_img(power_doppler_img)
         display = plotting.plot_stat_map(
             zmap,
             bg_img=mean_image,
@@ -192,15 +192,6 @@ def fit_glm_time_shift(power_doppler_img, time_stamps, transformations,
     ax.set_ylabel('Max T-Statistic')
     fig.savefig(out_dir / "tstattrend.png")
     plt.close(fig)
-
-    # use best zmap
-    zmap = zmaps[np.argmax(max_tstats)]
-    event_time_offset = event_time_offsets[np.argmax(max_tstats)]
-    copyfile(
-        out_dir / 'time_shift' / f"eto-{event_time_offset}_tstatmap.png",
-        out_dir / "zmap.png"
-    )
-    nib.save(zmap, out_dir / "zmap.nii.gz")
 
     # find best voxels
     zmap_data = np.array([np.array(zmap.dataobj).ravel() for zmap in zmaps])

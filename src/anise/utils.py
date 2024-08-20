@@ -30,6 +30,12 @@ def is_valid_hdf5(fname):
     return True
 
 
+def get_nii_data(img):
+    """Get data from nifti image, excluding any nan slices."""
+    img_data = np.array(img.dataobj)
+    return img_data[..., ~np.isnan(img_data).any(axis=range(0, img.ndim - 1))]
+
+
 def get_bids_value(bids_path, keyword):
     """Get the keyword value of a BIDS named file.
 

@@ -109,9 +109,9 @@ with open(out_dir / 'log.txt', "a") as fid:
 
         # get parameters
         rat = anise.utils.match_param('rat', pd_dir.relative_to(root))
-        rat = '001' if rat is None else rat  # default
+        rat = '001' if rat is None else f'{int(rat):02}'  # default
         run = anise.utils.match_param('run', pd_dir.relative_to(root))
-        run = '01' if run is None else run  # default
+        run = '01' if run is None else f'{int(run):01}'  # default
         seq = anise.utils.match_param('seq', pd_dir.relative_to(root))
         seq = pd_dir.parts[-2] if seq is None else seq
         depth_min_match = re.search('[0-9]+Dmin', seq)
@@ -182,6 +182,22 @@ with open(out_dir / 'log.txt', "a") as fid:
         if bad_idxs:
             bmode_info = bmode_info.drop(index=bad_idxs)
 
+        # load power doppler niftis
+        pwd_data = dict()
+        bmode_pwd_mismatch = False
+        for n_tc in this_n_tcs:
+            with redirect_stdout(fid):
+                pwd_img, time_stamps = anise.utils.get_power_doppler_nii(pd_dir, n_tc)
+            pwd_data[n_tc] = pwd_img, time_stamps
+            if pwd_img.shape[-1] != len(bmode_info):
+                bmode_pwd_mismatch = (len(bmode_info), pwd_img.shape[-1])
+                break
+        
+        if bmode_pwd_mismatch:
+            df_ex.loc[len(df_ex.index)] = \
+                pd_dir, f'bmode power doppler mismatch {bmode_pwd_mismatch}'
+            continue
+
         # write bmodes
         for idx, from_fname in enumerate(bmode_info['Filename']):
             to_fname = bmode_dir / \
@@ -221,9 +237,7 @@ with open(out_dir / 'log.txt', "a") as fid:
         for n_tc in this_n_tcs:
             pd_base = (f'sub-{rat}_ses-{ses}_task-{task}_acq-{acq}_'
                        f'run-{run}_pose-{plane}_proc-svd{n_tc}ntc')
-            with redirect_stdout(fid):
-                power_doppler_nii, time_stamps = \
-                    anise.utils.get_power_doppler_nii(pd_dir, n_tc)
+            pwd_nii, time_stamps = pwd_data[n_tc]
             power_doppler_data = np.array([
                 h5py.File(pd_dir / pd)['power_doppler'][:]
                 for pd in power_doppler_infos[n_tc]['Filename']
@@ -243,7 +257,7 @@ with open(out_dir / 'log.txt', "a") as fid:
 
             if overwrite or not (fus_dir / f'{pd_base}_pwdt.nii.gz').exists():
                 # save nii
-                nib.save(power_doppler_nii, fus_dir / f'{pd_base}_pwdt.nii.gz')
+                nib.save(pwd_nii, fus_dir / f'{pd_base}_pwdt.nii.gz')
 
                 # add sidecar
                 sidecar = anise.utils.get_sidecar(
