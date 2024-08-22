@@ -24,7 +24,8 @@ glm_path = root / 'derivatives' / 'glm'
 metric_path = root / 'derivatives' / 'imgmetrics'
 metric_path.mkdir(parents=True, exist_ok=True)
 
-df = pd.read_csv(glm_path / 'experiment_data_proc.csv')
+df = pd.read_csv(glm_path / 'experiment_data_rel.csv')
+overwrite = False
 
 # %%
 # Manually label regions of interest
@@ -81,17 +82,23 @@ for i, row in tqdm(df.iterrows(), total=len(df)):
 
 # %%
 # Register to the first image for each setup
-for coord_fname, power_doppler_paths in \
+for coord_fname, pwd_paths in \
         tqdm(coord_lut.items(), total=len(coord_lut)):
+    if all([(Path(coord_path) / (pwd_path.name.replace(
+             '_pwdt.nii.gz', '_coords.txt'))).exists()
+            for pwd_path in pwd_paths]) and not overwrite:
+        continue
     coords = np.loadtxt(coord_fname)
-    pwd_img0 = nib.load(power_doppler_paths[0])
+    pwd_img0 = nib.load(pwd_paths[0])
     pwd_img_frame0 = np.array(pwd_img0.dataobj)[..., 0]
     np.savetxt(
-        coord_path / (power_doppler_paths[0].name.replace(
+        coord_path / (pwd_paths[0].name.replace(
             '_pwdt.nii.gz', '_coords.txt')), coords)
-    for power_doppler_path in power_doppler_paths[1:]:
+    for pwd_path in pwd_paths[1:]:
+        out_fname = coord_path / (pwd_path.name.replace(
+            '_pwdt.nii.gz', '_coords.txt'))
         coords2 = coords.copy()
-        pwd_img = nib.load(power_doppler_path)
+        pwd_img = nib.load(pwd_path)
         pwd_img_data = np.array(pwd_img.dataobj)
         scale = np.array(pwd_img.shape[:-1]) / np.array(pwd_img0.shape[:-1])
         pwd_img_stack = np.concatenate([
@@ -102,9 +109,7 @@ for coord_fname, power_doppler_paths in \
         coords2[:, 2] = (coords2[:, 2] * scale[0]) + trans[0][1]
         coords2[:, 1] = (coords2[:, 1] * scale[2]) + trans[1][1]
         coords2[:, 3] = (coords2[:, 3] * scale[2]) + trans[1][1]
-        np.savetxt(
-            coord_path / (power_doppler_path.name.replace(
-                '_pwdt.nii.gz', '_coords.txt')), coords2)
+        np.savetxt(out_fname, coords2)
 
 
 # %%
@@ -160,7 +165,8 @@ def tstat_cor(df, rois, thresh_roi, thresh_noise, n_frames=None):
 
 
 rois = {Path(power_doppler_fname):
-        cluster_idxs[Path(power_doppler_fname)]
+        np.concatenate(cluster_idxs[Path(power_doppler_fname)],
+                       axis=0)
         for power_doppler_fname in df['power_doppler_fname']}
 out = [Parallel(n_jobs=20)(delayed(tstat_cor)(
        df[~np.isnan(df['max_tstat_rel'])], rois,
@@ -194,6 +200,7 @@ def plot_grid_search(rs, ps, thresh_roi_check,
     return fig
 
 
+(metric_path / 'plots').mkdir(exist_ok=True)
 fig = plot_grid_search(rs, ps, thresh_roi_check, thresh_noise_check)
 fig.savefig(metric_path / 'plots' / 'cnr_glm_n_voxels.png')
 plt.close(fig)
@@ -396,7 +403,6 @@ for col in df.columns[-4:]:
 
 # %%
 # Compare with expert ratings
-
 for mode in ('bmode', 'power_doppler'):
     mode_str = mode.replace('_', '')
     rating_fnames = (metric_path / 'ratings').glob(

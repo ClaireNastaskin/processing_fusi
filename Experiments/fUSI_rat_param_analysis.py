@@ -18,23 +18,14 @@ glm_path = root / 'derivatives' / 'glm'
 plot_dir = glm_path / 'plots'
 plot_dir.mkdir(exist_ok=True)
 
-df = pd.read_csv(glm_path / 'experiment_data.csv')
+df = pd.read_csv(glm_path / 'experiment_data_proc.csv')
 df['shifts'] = [eval('np.array(' + shift + ')')
                 for shift in df['shifts']]
 df['max_tstats'] = [eval('np.array(' + max_tstats + ')')
                     for max_tstats in df['max_tstats']]
 
-drop = list()
-keep = [p.stem for p in (plot_dir / 'keep_qc').glob('*')]
-for i, row in df.iterrows():
-    power_doppler_path = Path(row['power_doppler_fname'])
-    basename = '_'.join('.'.join(
-        power_doppler_path.stem.split('.')[:-1]).split('_')[:-1])
-    if f'{basename}_zmap' not in keep:
-        drop.append(i)
-
 df2 = df.copy()
-df = df.drop(drop, axis='index')
+df = df[~df['empty_zmap']]
 
 # %%
 # Plot max t-statistics
@@ -77,7 +68,7 @@ for ext in ('png', 'eps'):
 plt.close(ax.figure)
 
 # %%
-# Experiment plots. For each experiment, use the session name to find
+# Experiment plots: For each experiment, use the session name to find
 # what has been changed relative to the others, then plot the differences
 # in those parameters.
 df_comp = pd.DataFrame(
@@ -245,7 +236,7 @@ for group, df_group in df_gb2:
 # empty, don't plot
 print(killed_zmap)
 
-df.to_csv(glm_path / 'experiment_data_proc.csv')
+df.to_csv(glm_path / 'experiment_data_rel.csv')
 
 # %%
 # Second-level analysis
