@@ -28,7 +28,7 @@ df2 = df.copy()
 df = df[~df['empty_zmap']]
 
 # %%
-# Plot max t-statistics
+# Plot max z-scores
 datasets = list(np.unique(df['dataset']))
 subjects = list(np.unique(df['rat']))
 fig, axs = plt.subplots(len(datasets), len(subjects), figsize=(8, 8))
@@ -36,7 +36,7 @@ for i, dataset in enumerate(datasets):
     for j, subject in enumerate(subjects):
         axs[i, j].set_title(f'{dataset} rat {subject}')
 axs[-1, 0].set_xlabel('Time Shift')
-axs[-1, 0].set_ylabel('Maximum T-Statistic')
+axs[-1, 0].set_ylabel('Maximum z-score')
 for _, row in df.iterrows():
     ax = axs[datasets.index(row['dataset']),
              subjects.index(row['rat'])]
@@ -196,7 +196,7 @@ for col in df.columns[7:-10]:
 
 
 # %%
-# Overall plots. For all the experiments, look at the trend of t-stat
+# Overall plots. For all the experiments, look at the trend of z-scores
 # relative to generic across parameters.
 for factor in ('frequency', 'az_aperture', 'el_aperture', 'gain',
                'n_tissue_components'):
