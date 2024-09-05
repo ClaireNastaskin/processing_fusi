@@ -141,7 +141,8 @@ cluster_idxs = np.load(
 thresh_roi_check = np.arange(5, 210, 5)
 thresh_noise_check = np.arange(10, 4000, 100)
 
-def zmap_cor(df, rois, thresh_roi, thresh_noise, n_frames=None):
+def zmap_cor(df, rois, thresh_roi, thresh_noise, n_frames=None,
+             average=False):
     vals = list()
     for i, row in df.iterrows():
         power_doppler_path = Path(row['power_doppler_fname'])
@@ -150,16 +151,27 @@ def zmap_cor(df, rois, thresh_roi, thresh_noise, n_frames=None):
         this_reg_path = reg_path / sub_ses_dir / 'fus'
         basename = '_'.join('.'.join(
             power_doppler_path.stem.split('.')[:-1]).split('_')[:-1])
-        pd_img = nib.load(this_reg_path / f'{basename}_pwdt.nii.gz')
-        pd_img_data = np.array(pd_img.dataobj)
+        pwd_img = nib.load(this_reg_path / f'{basename}_pwdt.nii.gz')
+        pwd_img_data = np.array(pwd_img.dataobj)
         if n_frames is not None:
-            pd_img_data = pd_img_data[..., :n_frames]
-        vals.append(anise.process.image_metrics.cnr(
-            pd_img_data,
-            rois[power_doppler_path],
-            thresh_roi=thresh_roi,
-            thresh_noise=thresh_noise
-        ))
+            pwd_img_data = pwd_img_data[..., :n_frames]
+        if average:
+            vals.append(np.mean([
+                anise.process.image_metrics.cnr(
+                    pwd_img_data[..., j:j + 1],
+                    rois[power_doppler_path],
+                    thresh_roi=thresh_roi,
+                    thresh_noise=thresh_noise
+                )
+                for j in range(pwd_img_data.shape[-1])
+            ]))
+        else:
+            vals.append(anise.process.image_metrics.cnr(
+                pwd_img_data,
+                rois[power_doppler_path],
+                thresh_roi=thresh_roi,
+                thresh_noise=thresh_noise
+            ))
     r, p = stats.pearsonr(vals, df['max_zmap_rel'])
     return r, p
 
@@ -170,7 +182,7 @@ rois = {Path(power_doppler_fname):
         for power_doppler_fname in df['power_doppler_fname']}
 out = [Parallel(n_jobs=20)(delayed(zmap_cor)(
        df[~np.isnan(df['max_zmap_rel'])], rois,
-       thresh_roi, thresh_noise)
+       thresh_roi, thresh_noise, average=True)
        for thresh_roi in thresh_roi_check)
        for thresh_noise in tqdm(thresh_noise_check)]
 rs, ps = np.array(out).transpose(2, 0, 1)

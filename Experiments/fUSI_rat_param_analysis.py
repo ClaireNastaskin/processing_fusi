@@ -162,7 +162,7 @@ for (comp, values), group in df_comp_gb:
     comp_stds = np.std(list(max_zmaps.values()), axis=1)
     ax.bar(values, comp_means, yerr=comp_stds)
     ax.set_xlabel(comp)
-    ax.set_ylabel('Max T-Statistic')
+    ax.set_ylabel('Max Z-score')
     if res.pvalue < 0.05:
         y = np.max(comp_means + comp_stds)
         ax.plot([0, 0, 1, 1], [y * 1.05, y * 1.1, y * 1.1, y * 1.05],
