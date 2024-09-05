@@ -52,12 +52,12 @@ def do_one_glm(pwd_path):
                          'beh' / f'{basename_events}_events.tsv', sep='\t')
     event = events.loc[0, 'trial_type']
 
-    shifts, max_tstats, best_offset = \
+    shifts, max_zmaps, best_offset = \
         anise.process.fusi_glm_fit2.fit_glm_time_shift(
             pwd_img, time_stamps, transformations, event, events,
             out_dir=this_glm_path / basename, shift=20
         )
-    return shifts, max_tstats, best_offset
+    return shifts, max_zmaps, best_offset
 
 
 output = Parallel(n_jobs=20)(
@@ -69,10 +69,10 @@ for pwd_path in tqdm(df['power_doppler_fname'], total=len(df)):
 """
 
 df['shifts'] = [list(out[0]) for out in output]
-df['max_tstats'] = [list(out[1]) for out in output]
+df['max_zmaps'] = [list(out[1]) for out in output]
 df['shift'] = [out[2] for out in output]
-df['max_tstat'] = [max_tstats[shifts.index(best_shift)]
-                   for max_tstats, shifts, best_shift in
-                   zip(df['max_tstats'], df['shifts'],
-                       df['shift'])]
+df['max_zmap'] = [max_zmaps[shifts.index(best_shift)]
+                  for max_zmaps, shifts, best_shift in
+                  zip(df['max_zmaps'], df['shifts'],
+                      df['shift'])]
 df.to_csv(glm_path / 'experiment_data.csv', index=False)

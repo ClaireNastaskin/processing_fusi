@@ -141,7 +141,7 @@ cluster_idxs = np.load(
 thresh_roi_check = np.arange(5, 210, 5)
 thresh_noise_check = np.arange(10, 4000, 100)
 
-def tstat_cor(df, rois, thresh_roi, thresh_noise, n_frames=None):
+def zmap_cor(df, rois, thresh_roi, thresh_noise, n_frames=None):
     vals = list()
     for i, row in df.iterrows():
         power_doppler_path = Path(row['power_doppler_fname'])
@@ -160,7 +160,7 @@ def tstat_cor(df, rois, thresh_roi, thresh_noise, n_frames=None):
             thresh_roi=thresh_roi,
             thresh_noise=thresh_noise
         ))
-    r, p = stats.pearsonr(vals, df['max_tstat_rel'])
+    r, p = stats.pearsonr(vals, df['max_zmap_rel'])
     return r, p
 
 
@@ -168,8 +168,8 @@ rois = {Path(power_doppler_fname):
         np.concatenate(cluster_idxs[Path(power_doppler_fname)],
                        axis=0)
         for power_doppler_fname in df['power_doppler_fname']}
-out = [Parallel(n_jobs=20)(delayed(tstat_cor)(
-       df[~np.isnan(df['max_tstat_rel'])], rois,
+out = [Parallel(n_jobs=20)(delayed(zmap_cor)(
+       df[~np.isnan(df['max_zmap_rel'])], rois,
        thresh_roi, thresh_noise)
        for thresh_roi in thresh_roi_check)
        for thresh_noise in tqdm(thresh_noise_check)]
@@ -212,8 +212,8 @@ thresh_noise = thresh_noise_check[best_idx[0]]
 # %%
 # Plot number of frame dependency
 n_frames_check = np.arange(1, 101)
-out = Parallel(n_jobs=20)(delayed(tstat_cor)(
-      df[~np.isnan(df['max_tstat_rel'])], rois,
+out = Parallel(n_jobs=20)(delayed(zmap_cor)(
+      df[~np.isnan(df['max_zmap_rel'])], rois,
       thresh_roi, thresh_noise, n_frames)
       for n_frames in n_frames_check)
 rs, ps = np.array(out).T
@@ -227,10 +227,10 @@ plt.close(fig)
 
 # %%
 # Show pixels used
-best_idx = df.loc[~np.isnan(df['max_tstat_rel']),
-                  'max_tstat_rel'].idxmax()
-worst_idx = df.loc[~np.isnan(df['max_tstat_rel']),
-                   'max_tstat_rel'].idxmin()
+best_idx = df.loc[~np.isnan(df['max_zmap_rel']),
+                  'max_zmap_rel'].idxmax()
+worst_idx = df.loc[~np.isnan(df['max_zmap_rel']),
+                   'max_zmap_rel'].idxmin()
 for name, idx in dict(best=best_idx, worst=worst_idx).items():
     row = df.loc[idx]
     power_doppler_path = Path(row['power_doppler_fname'])
@@ -293,8 +293,8 @@ thresh_roi_check = np.arange(5, 210, 5)
 thresh_noise_check = np.arange(10, 4000, 100)
 rs_ps_all = dict()
 for i, _ in enumerate(tqdm(coords)):
-    out = [Parallel(n_jobs=20)(delayed(tstat_cor)(
-       df[~np.isnan(df['max_tstat_rel'])], rois[i],
+    out = [Parallel(n_jobs=20)(delayed(zmap_cor)(
+       df[~np.isnan(df['max_zmap_rel'])], rois[i],
        thresh_roi, thresh_check)
        for thresh_roi in thresh_roi_check)
        for thresh_check in tqdm(thresh_noise_check)]
@@ -336,8 +336,8 @@ thresh_noise_check = np.arange(10, 50000, 500)
 
 rois = {Path(pwd_fname): None for pwd_fname in
         df['power_doppler_fname']}
-out = [Parallel(n_jobs=20)(delayed(tstat_cor)(
-       df[~np.isnan(df['max_tstat_rel'])], rois,
+out = [Parallel(n_jobs=20)(delayed(zmap_cor)(
+       df[~np.isnan(df['max_zmap_rel'])], rois,
        thresh_roi, thresh_noise)
        for thresh_roi in thresh_roi_check)
        for thresh_noise in tqdm(thresh_noise_check)]
@@ -382,7 +382,7 @@ for i, row in tqdm(df.iterrows(), total=len(df)):
 df.to_csv(metric_path / 'experiment_data.csv', index=False)
 
 # %%
-# Plot regression with max t-statistic
+# Plot regression with max z-score
 
 (metric_path / 'plots').mkdir(exist_ok=True)
 
@@ -394,11 +394,11 @@ def annotate(data, **kws):
             transform=ax.transAxes)
     
 for col in df.columns[-4:]:
-    ax = sns.lmplot(df[~np.isnan(df['max_tstat_rel'])], x=col, y='max_tstat_rel')
-    ax.map_dataframe(annotate, kwargs=dict(x=col, y='max_tstat_rel'))
+    ax = sns.lmplot(df[~np.isnan(df['max_zmap_rel'])], x=col, y='max_zmap_rel')
+    ax.map_dataframe(annotate, kwargs=dict(x=col, y='max_zmap_rel'))
     for ext in ('png', 'eps'):
         ax.figure.savefig(metric_path / 'plots' / 
-                          f'{col}_maxtstat_reg.{ext}', dpi=300)
+                          f'{col}_maxzmap_reg.{ext}', dpi=300)
     plt.close(ax.figure)
 
 # %%
@@ -427,13 +427,13 @@ for mode in ('bmode', 'power_doppler'):
             df.loc[i, 'imrate_score'] = scores[ordids.index(img_fname)]
 
         ax = sns.lmplot(df.dropna(),
-                        x="imrate_score", y='max_tstat_rel')
+                        x="imrate_score", y='max_zmap_rel')
         ax.map_dataframe(annotate, kwargs=dict(x="imrate_score",
-                                               y='max_tstat_rel'))
+                                               y='max_zmap_rel'))
         for ext in ('png', 'eps'):
             ax.figure.savefig(
                 metric_path / 'plots' / 
-                f'{rating_fname.stem}_maxtstat_reg.{ext}', dpi=300)
+                f'{rating_fname.stem}_maxzmap_reg.{ext}', dpi=300)
         plt.close(ax.figure)
 
         print(rating_fname, ordids, scores)
@@ -443,7 +443,7 @@ for mode in ('bmode', 'power_doppler'):
 df = pd.read_csv(metric_path / 'experiment_data.csv')
 df = df.drop([col for col in df.columns if '0' in col or col == 'index'],
              axis='columns')  # cruft
-df = df.drop(['metadata', 'shifts', 'max_tstats'], axis='columns')
+df = df.drop(['metadata', 'shifts', 'max_zmaps'], axis='columns')
 for col in [col for col in df.columns if 'img_fname' in col]:
     df[col] = [
         f'<img src="{Path(img_fname).relative_to(root)}" width="400">'

@@ -83,7 +83,7 @@ for i, row in tqdm(df.iterrows(), total=len(df)):
         (pwd_path, n_clusters, largest_cluster,
          average_cluster_size, largest_clusters_max_z)
 
-df['max_tstat2'] = df_zmap['largest_clusters_max_z']
+df['max_zmap2'] = df_zmap['largest_clusters_max_z']
 df['largest_cluster'] = df_zmap['largest_cluster']
 np.savez_compressed(glm_path / 'cluster_idxs.npz', largest_cluster_idxs)
 
