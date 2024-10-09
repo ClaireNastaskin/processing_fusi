@@ -164,15 +164,15 @@ def fit_glm_time_shift(power_doppler_img, time_stamps,
     -------
     event_time_offsets : np.ndarray
         All the time offsets tried.
-    max_tstats: np.ndarray
-        The maximum T-statistic per offset.
+    max_zmaps: np.ndarray
+        The maximum z-score per offset.
     best_offset : float
         The best offset as found by averaging intensity time courses.
     """
     if out_dir is not None:
         (out_dir / 'time_shift').mkdir(parents=True, exist_ok=True)
 
-    max_tstats = list()
+    max_zmaps = list()
     zmaps = list()
     event_time_offsets = np.arange(-shift, shift + shift_res, shift_res).round(2)
     for event_time_offset in tqdm(event_time_offsets):
@@ -186,12 +186,11 @@ def fit_glm_time_shift(power_doppler_img, time_stamps,
             nib.save(zmap, (out_dir / 'time_shift' /
                             f"eto-{event_time_offset}_zmap.nii.gz"))
         zmaps.append(zmap)
-        max_tstat = np.max(zmap.get_fdata())
-        max_tstats.append(max_tstat)
+        max_zmap = np.max(zmap.get_fdata())
+        max_zmaps.append(max_zmap)
 
         if out_dir is not None:
             mean_image = mean_img(power_doppler_img)
-            title = f"pwm_enabled contrast\n(shifted {event_time_offset.round(2)})"
             display = plotting.plot_stat_map(
                 zmap,
                 bg_img=mean_image,
@@ -199,19 +198,20 @@ def fit_glm_time_shift(power_doppler_img, time_stamps,
                 threshold=3,
                 display_mode="y",
                 black_bg=True,
-                title=title,
+                title=f"pwm_enabled contrast\n(shifted {event_time_offset.round(2)})",
             )
             display.savefig(out_dir / 'time_shift' /
-                            f"eto-{event_time_offset}_tstatmap.png")
+                            f"eto-{event_time_offset}_zmap.png")
             display.close()
 
     if out_dir is not None:
         fig, ax = plt.subplots()
-        ax.plot(event_time_offsets, max_tstats)
+        ax.plot(event_time_offsets, max_zmaps)
         ax.set_xlabel('Event Time Offset')
         ax.set_ylabel('Max T-Statistic')
-        fig.savefig(out_dir / "tstattrend.png")
+        fig.savefig(out_dir / "zmaptrend.png")
         plt.close(fig)
+
 
     # find best voxels
     zmap_data = np.array([np.array(zmap.dataobj).ravel() for zmap in zmaps])
@@ -224,17 +224,17 @@ def fit_glm_time_shift(power_doppler_img, time_stamps,
     best_zmap = zmaps[best_idx]
 
     if out_dir is not None:
-        # plot intensity values over time shifts
-        fig, ax = plt.subplots()
-        ax.plot(event_time_offsets, zmap_data[:, zmap_best_idxs])
-        ax.set_xlabel('Time Shift (s)')
-        ax.set_ylabel('T-Statistic')
-        fig.savefig(out_dir / 'best_voxel_time_shifts.png')
+         # plot intensity values over time shifts
+         fig, ax = plt.subplots()
+         ax.plot(event_time_offsets, zmap_data[:, zmap_best_idxs])
+         ax.set_xlabel('Time Shift (s)')
+         ax.set_ylabel('T-Statistic')
+         fig.savefig(out_dir / 'best_voxel_time_shifts.png')
 
-        copyfile(
-            out_dir / 'time_shift' / f"eto-{best_offset}_tstatmap.png",
-            out_dir / "best_zmap.png"
-        )
-        nib.save(best_zmap, out_dir / "best_zmap.nii.gz")
+         copyfile(
+             out_dir / 'time_shift' / f"eto-{best_offset}_zmap.png",
+             out_dir / "best_zmap.png"
+         )
+         nib.save(best_zmap, out_dir / "best_zmap.nii.gz")
 
-    return event_time_offsets, max_tstats, best_offset
+    return event_time_offsets, max_zmaps, best_offset

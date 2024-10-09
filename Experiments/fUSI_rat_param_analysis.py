@@ -21,14 +21,14 @@ plot_dir.mkdir(exist_ok=True)
 df = pd.read_csv(glm_path / 'experiment_data_proc.csv')
 df['shifts'] = [eval('np.array(' + shift + ')')
                 for shift in df['shifts']]
-df['max_tstats'] = [eval('np.array(' + max_tstats + ')')
-                    for max_tstats in df['max_tstats']]
+df['max_zmaps'] = [eval('np.array(' + max_zmaps + ')')
+                   for max_zmaps in df['max_zmaps']]
 
 df2 = df.copy()
 df = df[~df['empty_zmap']]
 
 # %%
-# Plot max t-statistics
+# Plot max z-scores
 datasets = list(np.unique(df['dataset']))
 subjects = list(np.unique(df['rat']))
 fig, axs = plt.subplots(len(datasets), len(subjects), figsize=(8, 8))
@@ -36,19 +36,19 @@ for i, dataset in enumerate(datasets):
     for j, subject in enumerate(subjects):
         axs[i, j].set_title(f'{dataset} rat {subject}')
 axs[-1, 0].set_xlabel('Time Shift')
-axs[-1, 0].set_ylabel('Maximum T-Statistic')
+axs[-1, 0].set_ylabel('Maximum z-score')
 for _, row in df.iterrows():
     ax = axs[datasets.index(row['dataset']),
              subjects.index(row['rat'])]
-    ax.plot(row['shifts'], row['max_tstats'])
+    ax.plot(row['shifts'], row['max_zmaps'])
 fig.tight_layout()
 for ext in ('png', 'eps'):
-    ax.figure.savefig(plot_dir / f'max_tstats_all.{ext}', dpi=300)
+    ax.figure.savefig(plot_dir / f'max_zmaps_all.{ext}', dpi=300)
 plt.close(fig)
 
-ax = sns.displot(df, x="max_tstat2", hue="dataset", palette='tab10')
+ax = sns.displot(df, x="max_zmap2", hue="dataset", palette='tab10')
 for ext in ('png', 'eps'):
-    ax.figure.savefig(plot_dir / f'max_tstats.{ext}', dpi=300)
+    ax.figure.savefig(plot_dir / f'max_zmaps.{ext}', dpi=300)
 plt.close(ax.figure)
 
 # %%
@@ -60,11 +60,11 @@ plt.close(ax.figure)
 
 # %%
 # Plot interaction
-ax = sns.kdeplot(df, x="shift", y="max_tstat2", hue="dataset",
+ax = sns.kdeplot(df, x="shift", y="max_zmap2", hue="dataset",
                  palette='tab10')
 ax.figure.show()
 for ext in ('png', 'eps'):
-    ax.figure.savefig(plot_dir / f'shifts_max_tstats.{ext}', dpi=300)
+    ax.figure.savefig(plot_dir / f'shifts_max_zmaps.{ext}', dpi=300)
 plt.close(ax.figure)
 
 # %%
@@ -73,9 +73,9 @@ plt.close(ax.figure)
 # in those parameters.
 df_comp = pd.DataFrame(
     columns=['rat', 'dataset', 'plane', 'run', 'n_tissue_components',
-             'comparison', 'sequence', 'values', 'max_tstats'])
+             'comparison', 'sequence', 'values', 'max_zmaps'])
 df_gb = df.groupby(['rat', 'dataset', 'plane', 'run', 'n_tissue_components'])
-generic_max_tstats = dict()
+generic_max_zmaps = dict()
 for group, df_group in df_gb:
     generic = [idx for idx in df_group.index if
                'generic' in df_group.loc[idx, 'sequence']]
@@ -85,8 +85,8 @@ for group, df_group in df_gb:
         continue
     assert len(generic) == 1
     generic = generic[0]
-    generic_max_tstats.update({idx: df_group.loc[generic, 'max_tstat2']
-                               for idx in df_group.index})
+    generic_max_zmaps.update({idx: df_group.loc[generic, 'max_zmap2']
+                             for idx in df_group.index})
     # find names with one factor different
     comps = dict()  # comparisons
     for i, idx in enumerate(df_group.index):
@@ -130,14 +130,14 @@ for group, df_group in df_gb:
             group + (diff,
                      [df_group.loc[idx, 'sequence'] for idx, _ in picks],
                      [value for _, value in picks],
-                     [df_group.loc[idx, 'max_tstat2'] for idx, _ in picks])
+                     [df_group.loc[idx, 'max_zmap2'] for idx, _ in picks])
 
 # plots
 for comp in np.unique(df_comp['comparison']):
     fig, ax = plt.subplots()
     ax.set_title(comp)
     for i, row in df_comp[df_comp['comparison'] == comp].iterrows():
-        ax.plot(row['values'], row['max_tstats'])
+        ax.plot(row['values'], row['max_zmaps'])
     ax.set_xlabel('Parameter Value')
     ax.set_ylabel('Max T-Statistic')
     for ext in ('png', 'eps'):
@@ -151,18 +151,18 @@ for (comp, values), group in df_comp_gb:
     if len(group) < 3:
         print(f'{comp} {values} not enough data points, {len(group)} found')
         continue
-    max_tstats = {value: list() for value in values}
+    max_zmaps = {value: list() for value in values}
     for _, row in group.iterrows():
-        for value, max_tstat in zip(row['values'], row['max_tstats']):
-            max_tstats[value].append(max_tstat)
-    res = scipy.stats.ttest_rel(*max_tstats.values())
+        for value, max_zmap in zip(row['values'], row['max_zmaps']):
+            max_zmaps[value].append(max_zmap)
+    res = scipy.stats.ttest_rel(*max_zmaps.values())
     print(name, values, res)
     fig, ax = plt.subplots()
-    comp_means = np.mean(list(max_tstats.values()), axis=1)
-    comp_stds = np.std(list(max_tstats.values()), axis=1)
+    comp_means = np.mean(list(max_zmaps.values()), axis=1)
+    comp_stds = np.std(list(max_zmaps.values()), axis=1)
     ax.bar(values, comp_means, yerr=comp_stds)
     ax.set_xlabel(comp)
-    ax.set_ylabel('Max T-Statistic')
+    ax.set_ylabel('Max Z-score')
     if res.pvalue < 0.05:
         y = np.max(comp_means + comp_stds)
         ax.plot([0, 0, 1, 1], [y * 1.05, y * 1.1, y * 1.1, y * 1.05],
@@ -177,35 +177,35 @@ for (comp, values), group in df_comp_gb:
     plt.close(fig)
 
 
-df['max_tstat_rel'] = [df.loc[idx, 'max_tstat2'] - generic_max_tstats[idx]
-                       if idx in generic_max_tstats else np.nan
+df['max_zmap_rel'] = [df.loc[idx, 'max_zmap2'] - generic_max_zmaps[idx]
+                       if idx in generic_max_zmaps else np.nan
                        for idx in df.index]
-group_max_tstats = {idx: df_group['max_tstat2'].mean()
+group_max_zmaps = {idx: df_group['max_zmap2'].mean()
                     for _, df_group in df_gb for idx in df_group.index}
-df['max_tstat_rel2'] = [df.loc[idx, 'max_tstat2'] - group_max_tstats[idx]
-                        if idx in group_max_tstats else np.nan
+df['max_zmap_rel2'] = [df.loc[idx, 'max_zmap2'] - group_max_zmaps[idx]
+                        if idx in group_max_zmaps else np.nan
                         for idx in df.index]
 
 # %%
 # Count plot better than generic
 (glm_path / 'plots' / 'generic_comp').mkdir(parents=True, exist_ok=True)
 for col in df.columns[7:-10]:
-    ax = sns.countplot(df[df['max_tstat_rel'] > 0], x=col)
+    ax = sns.countplot(df[df['max_zmap_rel'] > 0], x=col)
     ax.figure.savefig(glm_path / 'plots' / 'generic_comp' / f'{col}.png')
     plt.close(ax.figure)
 
 
 # %%
-# Overall plots. For all the experiments, look at the trend of t-stat
+# Overall plots. For all the experiments, look at the trend of z-scores
 # relative to generic across parameters.
 for factor in ('frequency', 'az_aperture', 'el_aperture', 'gain',
                'n_tissue_components'):
     if isinstance(np.unique(df[factor])[0], str):
-        grid = sns.catplot(df, x=factor, y="max_tstat2",
+        grid = sns.catplot(df, x=factor, y="max_zmap2",
                            row="rat", col="dataset",
                            palette="tab10")
     else:
-        grid = sns.displot(df, x="max_tstat2", hue=factor,
+        grid = sns.displot(df, x="max_zmap2", hue=factor,
                            row="rat", col="dataset",
                            palette="tab10", kde=True)
     for ext in ('png', 'eps'):
@@ -277,6 +277,6 @@ for i, interaction0 in enumerate(interactions):
                     pd.DataFrame({f'{col0}*{col1}': design_matrix[col0] * design_matrix[col1]})
                 ], axis='columns')
 
-model = sm.GLM(df['max_tstat2'], design_matrix.astype(float))
+model = sm.GLM(df['max_zmap2'], design_matrix.astype(float))
 res = model.fit()
 print(res.summary())
