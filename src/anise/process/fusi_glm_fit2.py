@@ -64,7 +64,7 @@ fig.show()
 
 def fit_glm(power_doppler_img, time_stamps,
             event, events, hrf='rat',
-            transformations=None):
+            transformations=None, smoothing_fwhm=None):
     """Compute a GLM on power doppler data.
 
     Parameters
@@ -79,14 +79,20 @@ def fit_glm(power_doppler_img, time_stamps,
         The event data.
     transformations : np.ndarray
         The transformations from the registration.
+    smoothing_fwhm : float | None
+        The smoothing applied to the GLM.
 
     Returns
     -------
     zmap : nib.Nifti1Image
         The T-statistic map from the GLM.
     """
-    fmri_glm = FirstLevelModel(minimize_memory=False, mask_img=False,
-                               smoothing_fwhm=None, standardize=True)
+    fmri_glm = FirstLevelModel(
+        minimize_memory=False,
+        mask_img=False,
+        smoothing_fwhm=smoothing_fwhm,
+        standardize=True
+    )
     kwargs = dict()
     if transformations is not None:
         kwargs['add_regs'] = transformations.T,
@@ -124,7 +130,7 @@ def fit_glm(power_doppler_img, time_stamps,
 
 def fit_glm_time_shift(power_doppler_img, time_stamps,
                        event, events, out_dir=None, hrf='rat',
-                       transformations=None,
+                       transformations=None, smoothing_fwhm=None,
                        shift=12, shift_res=0.25, n_best_vox=20):
     """Compute a GLM on power doppler data checking for the best time shift.
 
@@ -143,7 +149,9 @@ def fit_glm_time_shift(power_doppler_img, time_stamps,
     hrf : str
         The hemodynamic response function to use.
     transformations : np.ndarray
-        The transformations from the registration
+        The transformations from the registration.
+    smoothing_fwhm : float | None
+        The smoothing applied to the GLM.
     shift : float
         How far to check the events being shifted.
     shift_res : float
@@ -172,7 +180,8 @@ def fit_glm_time_shift(power_doppler_img, time_stamps,
         events_shifted['onset'] += event_time_offset
         zmap = fit_glm(power_doppler_img, time_stamps,
                        event, events_shifted, hrf=hrf,
-                       transformations=transformations)
+                       transformations=transformations,
+                       smoothing_fwhm=smoothing_fwhm)
         if out_dir is not None:
             nib.save(zmap, (out_dir / 'time_shift' /
                             f"eto-{event_time_offset}_zmap.nii.gz"))
