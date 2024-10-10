@@ -1,6 +1,8 @@
 from pathlib import Path
 import numpy as np
 import jax
+import re
+# import h5py
 
 # raw to schema
 from mangrove.io.metadata import PoseidonMetadata
@@ -11,6 +13,7 @@ from mangrove.beamform.preprocess import preprocess_iq_data_to_rf
 from mangrove.beamform.vbeam_ import das_beamformer
 from mangrove.io.convert.vbeam.mangrove_to_vbeam import \
     import_space_time_to_vbeam_setup, _time_beamform
+from mangrove.schema.wrapper.bmode_wrapper import BModeFile
 
 # power doppler
 from mangrove.power_doppler.pca_metal import PCAMetalPowerDoppler
@@ -38,13 +41,17 @@ smoothing_fwhm = 0.3
 metadata = PoseidonMetadata.from_folder(experiment_folder / 'metadata')
 acquisition_sequence_metadata, transducer_metadata = metadata_to_schema(metadata)
 raw_data_files = (experiment_folder / "raw_frame_data").glob("[!.]*.h5")
-pwd = list()
+pwd = dict()
+
 for raw_data_file in raw_data_files:
+    timestamp = re.search(r'\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{6}', raw_data_file.stem)
     # %%
     # Preprocess
     data, scan_timing_metadata = preprocess_raw_data(
         metadata, raw_data_file, transducer_metadata=transducer_metadata
     )
+    # file = h5py.File(str(raw_data_file).replace('raw_frame_data', 'schema'))
+    # np.testing.assert_array_equal(data, file['data'][:])
     """
     rf_data = preprocess_iq_data_to_rf(
         data, iq_afe_artifact_data=None, interp_factor=1,
@@ -71,6 +78,9 @@ for raw_data_file in raw_data_files:
     beamformed = np.array(
         _time_beamform(vbeam_setup=vbeam_setup, beamformer=beamformer)
     )
+    # fails: settings changed in between runs
+    # file = h5py.File(str(raw_data_file).replace('raw_frame_data', 'beamformed'))
+    # np.testing.assert_array_equal(beamformed, file['beamformed'][:])
 
     # %%
     # Power doppler
@@ -78,10 +88,20 @@ for raw_data_file in raw_data_files:
         num_tissue_components=50,
         num_blood_and_tissue_components=None
     ).fit_transform(
-        beamformed
+        beamformed.transpose(1, 2, 3, 0)
     )
+    # Also fails: because of backend? Stochastic?
+    # fname = list((raw_data_file.parent.parent / 'power_doppler').glob(f'{raw_data_file.stem}*.h5'))[0]
+    # assert 'num_blood_and_tissue_components=None' in fname.stem, 'num_tissue_components=50' in fname.stem
+    # np.testing.assert_array_equal(pwd_frame, h5py.File(fname)['power_doppler'][:])
 
-    pwd.append(pwd_frame)
+    pwd[timestamp] = pwd_frame
+
+time_stamps = sorted(pwd)
+pwd = nib.Nifti1Image(
+    np.array([pwd.get(timestamp) for timestamp in time_stamps]),
+    np.diag([0.15, 0.15, 0.15, 1])
+)
 
 # %%
 # Pipeline 2: power doppler -> zmap
@@ -106,9 +126,9 @@ ax.set_ylabel('max_z')
 fig.savefig('tmp.png')
 """
 
-pwd, time_stamps = get_power_doppler_nii(
+"""pwd, time_stamps = get_power_doppler_nii(
     power_doppler_path, num_tissue_components='50'
-)
+)"""
 mean_pwd = mean_img(pwd)
 nib.save(mean_pwd, 'tmp_mean2.nii.gz')
 events_shifted = events.copy()
@@ -128,5 +148,5 @@ zmap = glm.compute_contrast(
     'pwm_enable',
     output_type="stat"
 )
-nib.save(zmap, 'tmp_zmap2.nii.gz')
+nib.save(zmap, 'tmp_zmap4.nii.gz')
 
