@@ -1,7 +1,9 @@
 from pathlib import Path
 import numpy as np
+from tqdm import tqdm
 import jax
 import re
+from datetime import datetime
 # import h5py
 
 # raw to schema
@@ -41,10 +43,14 @@ smoothing_fwhm = 0.3
 metadata = PoseidonMetadata.from_folder(experiment_folder / 'metadata')
 acquisition_sequence_metadata, transducer_metadata = metadata_to_schema(metadata)
 raw_data_files = (experiment_folder / "raw_frame_data").glob("[!.]*.h5")
-pwd = dict()
+events = behavior_loader(
+    base_path / 'streams' / 'task-event_stream.h5'
+)
 
-for raw_data_file in raw_data_files:
-    timestamp = re.search(r'\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{6}', raw_data_file.stem)
+pwd_frames = dict()
+for raw_data_file in tqdm(list(raw_data_files)):
+    match = re.search(r'\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{6}', raw_data_file.stem)
+    timestamp = datetime.strptime(match.group(0).replace('-', ':'), '%Y:%m:%dT%H:%M:%S:%f')
     # %%
     # Preprocess
     data, scan_timing_metadata = preprocess_raw_data(
@@ -65,6 +71,7 @@ for raw_data_file in raw_data_files:
         acquisition_sequence_metadata=acquisition_sequence_metadata,
         speed_of_sound_m_s=1540.0,
     )
+    del data
     # Naive way to reduce GPU-RAM usage
     # Slice by:
     # - frame
@@ -90,26 +97,28 @@ for raw_data_file in raw_data_files:
     ).fit_transform(
         beamformed.transpose(1, 2, 3, 0)
     )
+    del beamformed
     # Also fails: because of backend? Stochastic?
     # fname = list((raw_data_file.parent.parent / 'power_doppler').glob(f'{raw_data_file.stem}*.h5'))[0]
     # assert 'num_blood_and_tissue_components=None' in fname.stem, 'num_tissue_components=50' in fname.stem
     # np.testing.assert_array_equal(pwd_frame, h5py.File(fname)['power_doppler'][:])
 
-    pwd[timestamp] = pwd_frame
+    pwd_frames[timestamp] = pwd_frame
 
-time_stamps = sorted(pwd)
+time_stamps = sorted(pwd_frames)
 pwd = nib.Nifti1Image(
-    np.array([pwd.get(timestamp) for timestamp in time_stamps]),
+    np.array([pwd_frames.get(timestamp)
+              for timestamp in time_stamps]).transpose(1, 2, 3, 0),
     np.diag([0.15, 0.15, 0.15, 1])
 )
+del pwd_frames
+time_stamps = np.array([(timestamp - time_stamps[0]).total_seconds()
+                        for timestamp in time_stamps])
 
 # %%
 # Pipeline 2: power doppler -> zmap
 
-power_doppler_path = experiment_folder / 'power_doppler'
-events = behavior_loader(
-    base_path / 'streams' / 'task-event_stream.h5'
-)
+# power_doppler_path = experiment_folder / 'power_doppler'
 
 """
 pwd, time_stamps = get_power_doppler_nii(
@@ -130,7 +139,7 @@ fig.savefig('tmp.png')
     power_doppler_path, num_tissue_components='50'
 )"""
 mean_pwd = mean_img(pwd)
-nib.save(mean_pwd, 'tmp_mean2.nii.gz')
+nib.save(mean_pwd, 'tmp_mean4.nii.gz')
 events_shifted = events.copy()
 events_shifted['onset'] += event_offset
 design_matrix = make_first_level_design_matrix(
