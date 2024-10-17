@@ -83,18 +83,25 @@ def get_sidecar(bmode_h5, pwd_h5, time_stamps, n_tc,
             with open(config_fname, 'r') as fid:
                 config[config_name] = json.load(fid)
 
+    # save list of clutter filter
+    # filters must appear in the order they are applied.
     n_bntc = get_param('num_blood_and_tissue_components', str(pwd_h5))
+    if n_bntc is None:
+        n_bntc = metadata_bmode['sequence']['ensemble_length'].item()
+    if n_tc is None:
+        n_tc = get_param('num_tissue_components', str(pwd_h5))
     clutter_filter_raw = metadata_pwd['metadata']['power_doppler']['clutter_filter']['filters']
     clutter_filter = [
         {
             'FilterType': (clutter_filter_raw['filter_type'].item()
                            if 'filter_type' in clutter_filter_raw else
-                           'Fixed-threshold SVD'),
+                           'SVD'),
             'LowThreshold': (clutter_filter_raw['num_tisse_components'][0]
                              if 'num_tissue_components' in clutter_filter_raw else
                              n_tc),
-            'HighThreshold': (metadata_bmode['sequence']['ensemble_length'].item()
-                              if n_bntc is None else n_bntc)
+            'HighThreshold': (clutter_filter_raw['num_blood_and_tissue_components'][0]
+                             if 'num_blood_and_tissue_components' in clutter_filter_raw else
+                             n_bntc),
         }
     ]
 
@@ -132,13 +139,25 @@ def get_sidecar(bmode_h5, pwd_h5, time_stamps, n_tc,
         tx_az_aperture = config['poseidon'].get('tx_az_aperture')
         tx_el_aperture = config['poseidon'].get('tx_el_aperture')
     else:
-        probe_central_frequency = float(get_param('RF', str(bmode_h5))) / 1e6
-        gain = get_param('Gain', str(bmode_h5), reverse=True)
-        tx_cycles = get_param('c', str(bmode_h5), reverse=True)
-        power_mode = get_param('AFE', str(bmode_h5), reverse=True)
-        chip_repeats = tgc_slope = tgc_duration = \
-            tx_az_aperture = tx_el_aperture = 'n/a'
-
+        probe_central_frequency = float(get_param('Hz', str(bmode_h5), reverse=True)) / 1e6
+        gain = int(get_param('Gain', str(bmode_h5), reverse=True))
+        tx_cycles = int(get_param('c', str(bmode_h5), reverse=True))
+        power_mode = int(get_param('AFE', str(bmode_h5), reverse=True))
+        chip_repeats = int(get_param('rp', str(bmode_h5), reverse=True))
+        tgc_init_gain = int(get_param('TGC', str(bmode_h5)))
+        tgc_duration = int(get_param('Tdur', str(bmode_h5), reverse=True))
+        tgc_slope = tx_az_aperture = tx_el_aperture = 'n/a'
+        
+    # get the start time of the acquisition
+    if 'scan_timing' in metadata_pwd['metadata']:
+        acquire_start_datetime = metadata_pwd['metadata']['scan_timing']['acquire_start_datetime']
+        ensemble_start_datetime = metadata_pwd['metadata']['scan_timing']['ensemble_start_datetime']
+    else:
+        # get the start time of the acquisition from filename
+        timestamp  = re.search(r'\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{6}', str(pwd_h5))
+        global_start_time = pd.to_datetime(timestamp.group(0).replace('-', ':'), 
+                                           format='%Y:%m:%dT%H:%M:%S:%f')
+        acquire_start_datetime = ensemble_start_datetime = global_start_time
 
     sidecar = dict(
         # Scanner and probe hardware
@@ -153,12 +172,12 @@ def get_sidecar(bmode_h5, pwd_h5, time_stamps, n_tc,
         ProbeElevationFocus= 'n/a', # in mm; not available
                                 
         # Sequence specifics
-        Depth = [metadata_pwd['depth'][0].round(7),
-                 metadata_pwd['depth'][-1].round(7)],
-        Lateral = [metadata_pwd['lateral'][0].round(7),
-                   metadata_pwd['lateral'][-1].round(7)],
-        Elevation = [str(metadata_pwd['elevation'][0]),
-                     str(metadata_pwd['elevation'][-1])],
+        Depth = [metadata_pwd['depth'][0].round(7) * 1000,
+                 metadata_pwd['depth'][-1].round(7) * 1000], #in mm
+        Lateral = [metadata_pwd['lateral'][0].round(7) * 1000,
+                   metadata_pwd['lateral'][-1].round(7) * 1000], #in mm
+        Elevation = [metadata_pwd['elevation'][0].round(7) * 1000,
+                     metadata_pwd['elevation'][-1].round(7) * 1000], #in mm
         UltrasoundPulseRepetitionFrequency = tr,
         PlaneWaveAngles = angles, # degrees
         UltrafastSamplingFrequency = tr_compound,
@@ -184,7 +203,7 @@ def get_sidecar(bmode_h5, pwd_h5, time_stamps, n_tc,
 
         # Timing parameters
         VolumeTiming = list(time_stamps), # in seconds
-        VolumeTimingStart = 0, # global time
+        VolumeTimingStart = str(acquire_start_datetime), # global time
         SliceEncodingDirection = xyz, 
         # DelayAfterTrigger = 'n/a' # required for acquisitions containing the pose entity
 
@@ -261,6 +280,110 @@ def match_param(param: str, path_dir: Path) -> str:
         return matches[0]
     return
 
+def get_BIDS_derivative_dir(base_path):
+    # Get the output directory for registration and GLM
+
+    register_dir = glm_dir = Path('')
+    for part in base_path.parts:
+        if part != 'sourcedata':
+            register_dir = register_dir / part
+            glm_dir = glm_dir / part
+        else:
+            register_dir = register_dir / 'derivatives' / 'registration'
+            glm_dir = glm_dir / 'derivatives' / 'glm'
+        
+    if not register_dir.exists():
+        register_dir.mkdir(parents=True, exist_ok=True)
+    if not glm_dir.exists():
+        glm_dir.mkdir(parents=True, exist_ok=True)
+
+    return register_dir, glm_dir
+
+def get_run_files_from_BIDS(base_path, run:str=None):
+    fus_dir = base_path / 'fus'
+    filenames = []
+    if run is None:
+        filenames = [f.name for f in fus_dir.iterdir() if f.is_file() and f.suffix == '.gz']
+    else:
+        filenames = [f.name for f in fus_dir.iterdir() if f.is_file() 
+                     and f.suffix == '.gz' and run in f.name]
+    print(f'Found {len(filenames)} files:')
+    for f in filenames: 
+        print('\t', f)
+    return filenames
+
+def load_data_from_BIDS(base_path, filename):
+
+    # Get the subject, session, run, and acquisition IDs
+    sub_id = match_param('sub', base_path)
+    ses_id = match_param('ses', base_path)
+    sub_type = 'human' if 'UCLA' in sub_id else 'rat'
+    run_id = 'run-' + get_param('run', filename)
+    acq_id = 'acq-' + get_param('acq', filename)
+    exp_id = dict(sub=sub_id, ses=ses_id, run=run_id, acq=acq_id, sub_type=sub_type)
+    print('='*47 + run_id + '='*47)
+
+    # Load the NIFTI file
+    fus_dir = base_path / 'fus'
+    beh_dir = base_path / 'beh'
+    nifti_data = nib.load(fus_dir / filename)
+    print(f'\nLoaded NIFTI file: {filename}')
+
+    # Load the metadata
+    metadata_fname = filename.replace('.nii.gz', '.json')
+    with open(fus_dir / metadata_fname, 'r') as file:
+        metadata = json.load(file)
+        print('Loaded json: \t  ', metadata_fname)
+
+    # Load the events
+    event_fname = filename.replace('pwdt.nii.gz', 'events.tsv')
+    events = pd.read_csv(beh_dir / event_fname, sep='\t')
+    print('Loaded events: \t  ', event_fname, '\n')
+    
+    return nifti_data, metadata, events, exp_id
+
+### Save functions
+def save_nifti_to_BIDS(output_path, data, filename=None, filename_tag='register'):
+    """
+    Saves the power doppler data to a NIFTI file.
+    
+    Args:
+    data (np.array): The power doppler data to save.
+    output_path (str): The path to save the NIFTI file. If None, the file will be saved in the output folder.
+    filename: The name of the saved NIFTI file ()
+    
+    Returns:
+    filename: The name of the saved NIFTI file ()
+
+    """
+    if output_path is not None and not output_path.exists():
+        output_path.mkdir(parents=True, exist_ok=True)
+    
+    if data is None:
+        print('\nNo data to save. \nExiting...')
+        return None
+    
+    # affine to rescale and flip the images
+    affine=np.array([[0.2, 0.,  0.,  0.],
+                    [0.,  0.2, 0.,  0.],
+                    [0.,  0., -0.2, 0.],
+                    [0.,  0.,  0.,  0.]])
+
+    # Get the header
+    hdr = nib.Nifti2Header()
+    hdr['descrip'] = '"lateral", "elevation", "depth", "time"'
+
+    # define the nifti image
+    nifti_img = nib.Nifti2Image(data, 
+                                affine=affine,
+                                header=hdr)
+    
+    # save the nifti file
+    if filename_tag:
+        filename = filename + '_' + filename_tag
+    nifti_img.to_filename(output_path / (filename + '.nii.gz'))
+    print(f'Saved NIFTI file as:    {output_path}/{filename}.nii.gz')
+    return filename
 
 def load_fusi_info(directory, **kwargs):
     """
