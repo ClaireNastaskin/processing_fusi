@@ -35,7 +35,6 @@ def do_one_glm(pwd_path):
                                 if 'proc' not in group and 'acq' not in group])
 
     pwd_img = nib.load(this_reg_path / f'{basename}_pwdt.nii.gz')
-    pwd_data = np.array(pwd_img.dataobj)
     with open(root / 'sourcedata' / sub_ses_dir / 'fus' /
                 f'{basename}_pwdt.json', 'r') as fid:
         time_stamps = np.array(json.load(fid)['VolumeTiming'])
@@ -54,11 +53,11 @@ def do_one_glm(pwd_path):
 
     shifts, max_zmaps, best_offset = \
         anise.process.fusi_glm_fit2.fit_glm_time_shift(
-            pwd_img, time_stamps, transformations, event, events,
-            out_dir=this_glm_path / basename, shift=20
+            pwd_img, time_stamps, event, events,
+            out_dir=this_glm_path / basename,
+            transformations= transformations, shift=20
         )
     return shifts, max_zmaps, best_offset
-
 
 output = Parallel(n_jobs=20)(
     delayed(do_one_glm)(pwd_path)
