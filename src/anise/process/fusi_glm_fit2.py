@@ -1,13 +1,9 @@
-from pathlib import Path
 from tqdm import tqdm
 import numpy as np
 from shutil import copyfile
 
-import anise.utils
-import anise.io.behavior_loader
-
 import nibabel as nib
-from nilearn import plotting, image
+from nilearn import plotting
 from nilearn.glm.first_level import FirstLevelModel, make_first_level_design_matrix
 from nilearn.glm.first_level.hemodynamic_models import _gamma_difference_hrf
 from nilearn.image import mean_img
@@ -103,7 +99,7 @@ def fit_glm(power_doppler_img, time_stamps, transformations,
     }
 
     fmri_glm = fmri_glm.fit(power_doppler_img, design_matrices=design_matrix)
-    
+
     # if a different hrf is used annoyingly that changes the
     # name of the design matrix column, use indexing but check
     # that it is correct

@@ -19,6 +19,7 @@ reg_path = root / 'derivatives' / 'registration'
 reg_plots = reg_path / 'plots'
 reg_plots.mkdir(parents=True, exist_ok=True)
 
+
 # %%
 # Do registration
 

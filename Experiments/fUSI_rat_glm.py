@@ -26,8 +26,7 @@ def get_pwd_basename(pwd_path):
 
 def do_one_glm(pwd_path):
     pwd_path = Path(pwd_path)
-    sub_ses_dir = (pwd_path.relative_to(root /
-                   'sourcedata')).parent.parent
+    sub_ses_dir = (pwd_path.relative_to(root / 'sourcedata')).parent.parent
     this_reg_path = reg_path / sub_ses_dir / 'fus'
     this_glm_path = glm_path / sub_ses_dir / 'fus'
     basename = get_pwd_basename(pwd_path)
@@ -35,11 +34,10 @@ def do_one_glm(pwd_path):
                                 if 'proc' not in group and 'acq' not in group])
 
     pwd_img = nib.load(this_reg_path / f'{basename}_pwdt.nii.gz')
-    pwd_data = np.array(pwd_img.dataobj)
     with open(root / 'sourcedata' / sub_ses_dir / 'fus' /
-                f'{basename}_pwdt.json', 'r') as fid:
+              f'{basename}_pwdt.json', 'r') as fid:
         time_stamps = np.array(json.load(fid)['VolumeTiming'])
-    
+
     # get and apply nan mask
     pwd_img_orig = nib.load(root / 'sourcedata' / sub_ses_dir /
                             'fus' / f'{basename}_pwdt.nii.gz')

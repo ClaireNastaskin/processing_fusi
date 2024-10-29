@@ -552,7 +552,7 @@ def get_fusi_frames(power_doppler_path, power_doppler_df, frame_indices=-1):
         with h5py.File(file_path, 'r') as file:
             data = file['power_doppler'][:]
             data_list.append(data)
-    
+
     # Stack the data arrays along the last dimension,
     # reorient third dimension correctly
     stacked_data = np.flip(np.stack(data_list, axis=-1), axis=2)
@@ -565,7 +565,7 @@ def register_image_stack(image_stack):
                    for i in range(image_stack.shape[-1])]
     fixed_image = sitk_images[0]
     registered_images = [fixed_image]
-    
+
     # Array to store transformation parameters: [tx, ty, angle, 1]
     transform_params = np.zeros((3, image_stack.shape[-1]))  # Initialize with zeros
     transform_params[0, :] = 0  # If the last row is unused, set it to 1 or some default value
@@ -577,7 +577,7 @@ def register_image_stack(image_stack):
         learningRate=0.1, minStep=1e-4, numberOfIterations=100)
     registration_method.SetOptimizerScalesFromPhysicalShift()
     registration_method.SetInterpolator(sitk.sitkLinear)
-    
+
     initial_transform = sitk.Euler2DTransform()
     initial_transform.SetIdentity()
     registration_method.SetInitialTransform(initial_transform)
@@ -596,7 +596,7 @@ def register_image_stack(image_stack):
         final_transform = registration_method.Execute(fixed_image, moving_image)
         tx, ty = final_transform.GetTranslation()
         angle = final_transform.GetAngle()
-        
+
         # Store the transformation parameters
         transform_params[0, i] = tx
         transform_params[1, i] = ty
@@ -607,8 +607,8 @@ def register_image_stack(image_stack):
             sitk.sitkLinear, 0.0, moving_image.GetPixelID()
         )
         registered_images.append(resampled_image)
-    
+
     registered_array = np.stack([sitk.GetArrayFromImage(img)
                                  for img in registered_images], axis=-1)
-    
+
     return registered_array, transform_params
