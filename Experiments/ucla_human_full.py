@@ -31,7 +31,7 @@ from dipy.align import affine_registration
 from mne.transforms import _affine_to_quat
 
 # GLM
-from anise.utils import get_power_doppler_nii, register_image_stack
+from anise.utils import register_image_stack
 from anise.process.fusi_glm_fit2 import fit_glm_time_shift
 from nilearn.glm.first_level import make_first_level_design_matrix, FirstLevelModel
 from nilearn.image import mean_img
@@ -199,6 +199,7 @@ np.savetxt(experiment_folder / 'power_doppler' / 'pwd_timestamps.txt', time_stam
 # %%
 # Pipeline 2: power doppler -> zmap
 
+(experiment_folder / 'glm').mkdir(parents=True, exist_ok=True)
 pwd = nib.load(experiment_folder / 'power_doppler' / 'pwd.nii.gz')
 time_stamps = np.loadtxt(experiment_folder / 'power_doppler' / 'pwd_timestamps.txt')
 
@@ -257,13 +258,13 @@ shifts, max_tstats, best_offset = fit_glm_time_shift(
     event, events2, shift=20,
     smoothing_fwhm=smoothing_fwhm, hrf='glover',
     transformations=transformations,
-    out_dir=experiment_folder / 'power_doppler'
+    out_dir=experiment_folder / 'glm'
 )
 fig, ax = plt.subplots()
 ax.plot(shifts, max_tstats)
 ax.set_xlabel('shifts')
 ax.set_ylabel('max_z')
-fig.savefig(experiment_folder / 'power_doppler' / 'shifts.png')
+fig.savefig(experiment_folder / 'glm' / 'shifts.png')
 plt.close(fig)
 
 
@@ -271,7 +272,7 @@ plt.close(fig)
     power_doppler_path, num_tissue_components='50'
 )"""
 mean_pwd = mean_img(pwd_reg)
-nib.save(mean_pwd, experiment_folder / 'power_doppler' / 'pwd_mean.nii.gz')
+nib.save(mean_pwd, experiment_folder / 'glm' / 'pwd_mean.nii.gz')
 events_shifted = events.copy()
 events_shifted['onset'] += event_offset
 design_matrix = make_first_level_design_matrix(
@@ -289,7 +290,7 @@ zmap = glm.compute_contrast(
     event,
     output_type="stat"
 )
-nib.save(zmap, experiment_folder / 'power_doppler' / 'pwd_zmap.nii.gz')
+nib.save(zmap, experiment_folder / 'glm' / 'pwd_zmap.nii.gz')
 
 display = plotting.plot_stat_map(
     zmap,
@@ -300,7 +301,7 @@ display = plotting.plot_stat_map(
     black_bg=True,
     title=event,
 )
-display.savefig(experiment_folder / 'power_doppler' / 'pwd_zmap.png')
+display.savefig(experiment_folder / 'glm' / 'pwd_zmap.png')
 
 # time course
 zmap_data = np.array(zmap.dataobj)
@@ -335,6 +336,6 @@ while roi_idx < np.nanmax(clusters):
         ax.text(onset + duration / 2, 0.95, trial_type.replace('_', '\n'),
                 ha='center', va='center',
                 transform=BlendedGenericTransform(ax.transData, ax.transAxes))
-    fig.savefig(experiment_folder / 'power_doppler' / f'pwd_tc{roi_idx}.png')
+    fig.savefig(experiment_folder / 'glm' / f'pwd_tc{roi_idx}.png')
     zmap_data[clusters == clusters[ext_idx]] = np.nan
     roi_idx += 1
