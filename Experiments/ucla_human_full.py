@@ -215,6 +215,7 @@ else:
             np.array(pwd.dataobj)[:, pwd.shape[1] // 2]
         )
         pwd_reg = nib.Nifti1Image(pwd_reg[:, None], pwd.affine)
+        transformations = transformations.T
     else:
         pwd_data = np.array(pwd.dataobj).transpose(3, 0, 1, 2)
         static = pwd_data[0]
@@ -248,10 +249,10 @@ else:
             axis=-1,
         )  # convert to quaternions
         """
-        transformations = _affine_to_quat(reg_affines)
+        transformations = _affine_to_quat(reg_affines).T
         pwd_reg = nib.Nifti1Image(pwd_reg.transpose(1, 2, 3, 0), pwd.affine)
     nib.save(pwd_reg, experiment_folder / 'reg' / 'pwd.nii.gz')
-    np.savetxt(transformations, experiment_folder / 'reg' / 'transformations.txt')
+    np.savetxt(experiment_folder / 'reg' / 'transformations.txt', transformations)
 
 
 # glm

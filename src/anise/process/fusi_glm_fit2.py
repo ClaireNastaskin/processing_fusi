@@ -92,7 +92,8 @@ def fit_glm(pwd, time_stamps, event, events, hrf='rat',
         hrf = rat_hrf
     kwargs = dict()
     if transformations is not None:
-        kwargs['add_regs'] = transformations.T
+        assert transformations.shape
+        kwargs['add_regs'] = transformations
         pwd_shape = np.array(pwd.shape)
         if pwd_shape[pwd_shape > 1].size == 3:
             assert transformations.shape[1] == 3
