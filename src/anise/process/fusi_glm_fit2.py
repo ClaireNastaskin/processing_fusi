@@ -58,8 +58,7 @@ fig.show()
 """
 
 
-def fit_glm(power_doppler_img, time_stamps,
-            event, events, hrf='rat',
+def fit_glm(pwd, time_stamps, event, events, hrf='rat',
             transformations=None, smoothing_fwhm=None):
     """Compute a GLM on power doppler data.
 
@@ -92,12 +91,14 @@ def fit_glm(power_doppler_img, time_stamps,
     kwargs = dict()
     if transformations is not None:
         kwargs['add_regs'] = transformations.T
-        assert transformations.shape[0] in (3, 12)
-        kwargs['add_reg_names'] = \
-            ["tx", "ty", "rot"] if transformations.shape[0] == 3 else \
-            ["r00", "r01", "r02", "tx",
-             "r10", "r11", "r12", "ty",
-             "r20", "r21", "r22", "tz"]
+        pwd_shape = np.array(pwd.shape)
+        if pwd_shape[pwd_shape > 1].ndim == 3:
+            assert transformations.shape[0] == 3
+            kwargs['add_reg_names'] = ["tx", "ty", "rot"]
+        else:
+            assert pwd_shape[pwd_shape > 1].ndim == 4
+            assert transformations.shape[0] == 6
+            kwargs['add_reg_names'] = ["rx", "ry", "rz", "tx", "ty", "tz"]
     design_matrix = make_first_level_design_matrix(
         time_stamps,
         events,
@@ -113,7 +114,7 @@ def fit_glm(power_doppler_img, time_stamps,
         for i, column in enumerate(design_matrix.columns)
     }
 
-    fmri_glm = fmri_glm.fit(power_doppler_img, design_matrices=design_matrix)
+    fmri_glm = fmri_glm.fit(pwd, design_matrices=design_matrix)
 
     # if a different hrf is used annoyingly that changes the
     # name of the design matrix column, use indexing but check
@@ -129,8 +130,7 @@ def fit_glm(power_doppler_img, time_stamps,
     return zmap
 
 
-def fit_glm_time_shift(power_doppler_img, time_stamps,
-                       event, events, out_dir=None, hrf='rat',
+def fit_glm_time_shift(pwd, time_stamps, event, events, out_dir=None, hrf='rat',
                        transformations=None, smoothing_fwhm=None,
                        shift=12, shift_res=0.25, n_best_vox=20):
     """Compute a GLM on power doppler data checking for the best time shift.
@@ -179,9 +179,8 @@ def fit_glm_time_shift(power_doppler_img, time_stamps,
     for event_time_offset in tqdm(event_time_offsets):
         events_shifted = events.copy()
         events_shifted['onset'] += event_time_offset
-        zmap = fit_glm(power_doppler_img, time_stamps,
-                       event, events_shifted, hrf=hrf,
-                       transformations=transformations,
+        zmap = fit_glm(pwd, time_stamps, event, events_shifted,
+                       hrf=hrf, transformations=transformations,
                        smoothing_fwhm=smoothing_fwhm)
         if out_dir is not None:
             nib.save(zmap, (out_dir / 'time_shift' /
@@ -191,7 +190,7 @@ def fit_glm_time_shift(power_doppler_img, time_stamps,
         max_zmaps.append(max_zmap)
 
         if out_dir is not None:
-            mean_image = mean_img(power_doppler_img)
+            mean_image = mean_img(pwd)
             display = plotting.plot_stat_map(
                 zmap,
                 bg_img=mean_image,

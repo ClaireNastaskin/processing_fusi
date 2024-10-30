@@ -9,6 +9,7 @@ import re
 from datetime import datetime
 import h5py
 import pandas as pd
+from joblib import Parallel, delayed
 
 # raw to schema
 from mangrove.io.metadata import PoseidonMetadata
@@ -24,10 +25,14 @@ from mangrove.schema.wrapper.bmode_wrapper import BModeFile
 # power doppler
 from mangrove.power_doppler.pca_metal import PCAMetalPowerDoppler
 
-# GLM
+# registration
 from dipy.align import affine_registration
+# from quaternion import from_rotation_matrix, as_float_array
+from mne.transforms import _affine_to_quat
+
+# GLM
 from anise.utils import get_power_doppler_nii, register_image_stack
-from anise.process.fusi_glm_fit2 import rat_hrf, fit_glm_time_shift
+from anise.process.fusi_glm_fit2 import fit_glm_time_shift
 from nilearn.glm.first_level import make_first_level_design_matrix, FirstLevelModel
 from nilearn.image import mean_img
 
@@ -38,10 +43,12 @@ import nibabel as nib
 import matplotlib.pyplot as plt
 from matplotlib.transforms import BlendedGenericTransform
 
-base_path = Path('fUS_data/UCLA/data/UCLA_008/10-24-2024/Functional_runs/run-04')
-sequence = 'seq-2d_plane_wave'  # 'seq-IQ_3D_3cmto4cm_Depth_5MHz_1a_3c_200loops_-1Gain_2rp'
-"""
+base_path = Path('fUS_data/UCLA/data/UCLA_008/10-23-2024/Functional_runs/run-02')
+sequence = 'seq-IQ_3D_3cmto4cm_Depth_4MHz_1a_3c_200loops_-1Gain_2rp'  # 'seq-2d_plane_wave'  # 'seq-IQ_3D_3cmto4cm_Depth_5MHz_1a_3c_200loops_-1Gain_2rp'
 
+
+"""
+base_path = Path('fUS_data/UCLA/data/UCLA_009/Functional_runs/run-01')
 sequence = 'seq-IQ_3D_2cmto3cm_Depth_5MHz_1a_3c_200loops_-1Gain_2rp'
 """
 experiment_folder = base_path / 'acquisitions' / sequence
@@ -68,7 +75,10 @@ for event in h5py.File(base_path / 'streams' / 'task-event_stream.h5')['data'][:
     for item, col in zip(event, events_raw.columns):
         item = decode_event_item(item)
         if isinstance(item, dict) and col in item:
-            item = item[col]
+            if 'task' in item:
+                item = item['task']  # weird structure for movement
+            else:
+                item = item[col]
         items.append(item)
     events_raw.loc[len(events_raw.index)] = items
 
@@ -202,9 +212,11 @@ else:
     static = pwd_data[0]
     pwd_reg = np.zeros_like(pwd_data)
     pwd_reg[0] = static
-    transformations = np.zeros((pwd_data.shape[0], 4, 4))
-    log = io.StringIO()
-    for i, moving in enumerate(tqdm(pwd_data[1:])):
+    reg_affines = np.zeros((pwd_data.shape[0], 4, 4))
+    reg_affines[0] = np.eye(4)
+
+    def register_image(moving):
+        log = io.StringIO()
         with redirect_stdout(log):
             moved, reg_affine = affine_registration(
                 moving,
@@ -213,9 +225,22 @@ else:
                 static_affine=pwd.affine,
                 pipeline=['rigid'],
             )
+        return moved, reg_affine
+
+    out = Parallel(n_jobs=-5)(
+        delayed(register_image)(moving) for moving in tqdm(pwd_data[1:])
+    )
+    for i, (moved, reg_affine) in enumerate(out):
         pwd_reg[i + 1] = moved
-        transformations[i + 1] = reg_affine
-    transformations = transformations[:, :3].reshape(transformations.shape[0], -1).T
+        reg_affines[i + 1] = reg_affine
+    """
+    transformations = np.concatenate(
+        [as_float_array(from_rotation_matrix(reg_affines[..., :3, :3])),
+         reg_affines[..., :3, 3]],
+        axis=-1,
+    )  # convert to quaternions
+    """
+    transformations = _affine_to_quat(reg_affines)
     pwd_reg = nib.Nifti1Image(pwd_reg.transpose(1, 2, 3, 0), pwd.affine)
 
 # power_doppler_path = experiment_folder / 'power_doppler'
