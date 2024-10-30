@@ -88,23 +88,25 @@ def fit_glm(pwd, time_stamps, event, events, hrf='rat',
         smoothing_fwhm=smoothing_fwhm,
         standardize=True
     )
+    if hrf == 'rat':
+        hrf = rat_hrf
     kwargs = dict()
     if transformations is not None:
         kwargs['add_regs'] = transformations.T
         pwd_shape = np.array(pwd.shape)
         if pwd_shape[pwd_shape > 1].size == 3:
-            assert transformations.shape[0] == 3
+            assert transformations.shape[1] == 3
             kwargs['add_reg_names'] = ["tx", "ty", "rot"]
         else:
             assert pwd_shape[pwd_shape > 1].size == 4
-            assert transformations.shape[0] == 6
+            assert transformations.shape[1] == 6
             kwargs['add_reg_names'] = ["rx", "ry", "rz", "tx", "ty", "tz"]
     design_matrix = make_first_level_design_matrix(
         time_stamps,
         events,
         drift_model="polynomial",
         drift_order=1,
-        hrf_model=(rat_hrf if hrf == 'rat' else hrf),
+        hrf_model=hrf,
         **kwargs
     )
 

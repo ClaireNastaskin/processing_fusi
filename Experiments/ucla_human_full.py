@@ -199,58 +199,63 @@ np.savetxt(experiment_folder / 'power_doppler' / 'pwd_timestamps.txt', time_stam
 # %%
 # Pipeline 2: power doppler -> zmap
 
-(experiment_folder / 'glm').mkdir(parents=True, exist_ok=True)
 pwd = nib.load(experiment_folder / 'power_doppler' / 'pwd.nii.gz')
 time_stamps = np.loadtxt(experiment_folder / 'power_doppler' / 'pwd_timestamps.txt')
 
-if pwd.shape[1] < 10:
-    pwd_reg, transformations = register_image_stack(
-        np.array(pwd.dataobj)[:, pwd.shape[1] // 2]
+# registration
+(experiment_folder / 'reg').mkdir(parents=True, exist_ok=True)
+if (experiment_folder / 'reg' / 'pwd.nii.gz').exists():
+    pwd_reg = nib.load(experiment_folder / 'reg' / 'pwd.nii.gz')
+    transformations = np.loadtxt(
+        experiment_folder / 'reg' / 'transformations.txt'
     )
-    pwd_reg = nib.Nifti1Image(pwd_reg[:, None], pwd.affine)
 else:
-    pwd_data = np.array(pwd.dataobj).transpose(3, 0, 1, 2)
-    static = pwd_data[0]
-    pwd_reg = np.zeros_like(pwd_data)
-    pwd_reg[0] = static
-    reg_affines = np.zeros((pwd_data.shape[0], 4, 4))
-    reg_affines[0] = np.eye(4)
+    if pwd.shape[1] < 10:
+        pwd_reg, transformations = register_image_stack(
+            np.array(pwd.dataobj)[:, pwd.shape[1] // 2]
+        )
+        pwd_reg = nib.Nifti1Image(pwd_reg[:, None], pwd.affine)
+    else:
+        pwd_data = np.array(pwd.dataobj).transpose(3, 0, 1, 2)
+        static = pwd_data[0]
+        pwd_reg = np.zeros_like(pwd_data)
+        pwd_reg[0] = static
+        reg_affines = np.zeros((pwd_data.shape[0], 4, 4))
+        reg_affines[0] = np.eye(4)
 
-    def register_image(moving):
-        log = io.StringIO()
-        with redirect_stdout(log):
-            moved, reg_affine = affine_registration(
-                moving,
-                static,
-                moving_affine=pwd.affine,
-                static_affine=pwd.affine,
-                pipeline=['rigid'],
-            )
-        return moved, reg_affine
+        def register_image(moving):
+            log = io.StringIO()
+            with redirect_stdout(log):
+                moved, reg_affine = affine_registration(
+                    moving,
+                    static,
+                    moving_affine=pwd.affine,
+                    static_affine=pwd.affine,
+                    pipeline=['rigid'],
+                )
+            return moved, reg_affine
 
-    out = Parallel(n_jobs=-5)(
-        delayed(register_image)(moving) for moving in tqdm(pwd_data[1:])
-    )
-    for i, (moved, reg_affine) in enumerate(out):
-        pwd_reg[i + 1] = moved
-        reg_affines[i + 1] = reg_affine
-    """
-    transformations = np.concatenate(
-        [as_float_array(from_rotation_matrix(reg_affines[..., :3, :3])),
-         reg_affines[..., :3, 3]],
-        axis=-1,
-    )  # convert to quaternions
-    """
-    transformations = _affine_to_quat(reg_affines)
-    pwd_reg = nib.Nifti1Image(pwd_reg.transpose(1, 2, 3, 0), pwd.affine)
+        out = Parallel(n_jobs=-5)(
+            delayed(register_image)(moving) for moving in tqdm(pwd_data[1:])
+        )
+        for i, (moved, reg_affine) in enumerate(out):
+            pwd_reg[i + 1] = moved
+            reg_affines[i + 1] = reg_affine
+        """
+        transformations = np.concatenate(
+            [as_float_array(from_rotation_matrix(reg_affines[..., :3, :3])),
+             reg_affines[..., :3, 3]],
+            axis=-1,
+        )  # convert to quaternions
+        """
+        transformations = _affine_to_quat(reg_affines)
+        pwd_reg = nib.Nifti1Image(pwd_reg.transpose(1, 2, 3, 0), pwd.affine)
+    nib.save(pwd_reg, experiment_folder / 'reg' / 'pwd.nii.gz')
+    np.savetxt(transformations, experiment_folder / 'reg' / 'transformations.txt')
 
-# power_doppler_path = experiment_folder / 'power_doppler'
 
-"""
-pwd, time_stamps = get_power_doppler_nii(
-    power_doppler_path, num_tissue_components='50'
-)
-"""
+# glm
+(experiment_folder / 'glm').mkdir(parents=True, exist_ok=True)
 event = min(set(events.trial_type))
 events2 = events[events['trial_type'] == event]
 shifts, max_tstats, best_offset = fit_glm_time_shift(
