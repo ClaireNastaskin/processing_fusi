@@ -1,6 +1,7 @@
 from tqdm import tqdm
 import numpy as np
 from shutil import copyfile
+from joblib import Parallel, delayed
 
 import nibabel as nib
 from nilearn import plotting
@@ -133,9 +134,39 @@ def fit_glm(pwd, time_stamps, event, events, hrf='rat',
     return zmap
 
 
+def _fit_glm_time_shift(pwd, time_stamps, events, event, hrf, transformations,
+                        smoothing_fwhm, out_dir, event_time_offset):
+    events_shifted = events.copy()
+    events_shifted['onset'] += event_time_offset
+    zmap = fit_glm(pwd, time_stamps, event, events_shifted,
+                   hrf=hrf, transformations=transformations,
+                   smoothing_fwhm=smoothing_fwhm)
+    if out_dir is not None:
+        nib.save(zmap, (out_dir / 'time_shift' /
+                        f"eto-{event_time_offset}_zmap.nii.gz"))
+    zmaps.append(zmap)
+    max_zmap = np.max(zmap.get_fdata())
+    max_zmaps.append(max_zmap)
+
+    if out_dir is not None:
+        mean_image = mean_img(pwd)
+        display = plotting.plot_stat_map(
+            zmap,
+            bg_img=mean_image,
+            cut_coords=[0],
+            threshold=3,
+            display_mode="y",
+            black_bg=True,
+            title=f"pwm_enabled contrast\n(shifted {event_time_offset.round(2)})",
+        )
+        display.savefig(out_dir / 'time_shift' /
+                        f"eto-{event_time_offset}_zmap.png")
+        display.close()
+
+
 def fit_glm_time_shift(pwd, time_stamps, event, events, out_dir=None, hrf='rat',
                        transformations=None, smoothing_fwhm=None,
-                       shift=12, shift_res=0.25, n_best_vox=20):
+                       shift=12, shift_res=0.25, n_best_vox=20, n_jobs=None):
     """Compute a GLM on power doppler data checking for the best time shift.
 
     Parameters
@@ -163,6 +194,8 @@ def fit_glm_time_shift(pwd, time_stamps, event, events, out_dir=None, hrf='rat',
     n_best_vox : int
         The number of best voxels to use for considering
         in order to determine the best time shift.
+    n_jobs : int
+        The number of parallel jobs.
 
     Returns
     -------
@@ -179,33 +212,10 @@ def fit_glm_time_shift(pwd, time_stamps, event, events, out_dir=None, hrf='rat',
     max_zmaps = list()
     zmaps = list()
     event_time_offsets = np.arange(-shift, shift + shift_res, shift_res).round(2)
-    for event_time_offset in tqdm(event_time_offsets):
-        events_shifted = events.copy()
-        events_shifted['onset'] += event_time_offset
-        zmap = fit_glm(pwd, time_stamps, event, events_shifted,
-                       hrf=hrf, transformations=transformations,
-                       smoothing_fwhm=smoothing_fwhm)
-        if out_dir is not None:
-            nib.save(zmap, (out_dir / 'time_shift' /
-                            f"eto-{event_time_offset}_zmap.nii.gz"))
-        zmaps.append(zmap)
-        max_zmap = np.max(zmap.get_fdata())
-        max_zmaps.append(max_zmap)
-
-        if out_dir is not None:
-            mean_image = mean_img(pwd)
-            display = plotting.plot_stat_map(
-                zmap,
-                bg_img=mean_image,
-                cut_coords=[0],
-                threshold=3,
-                display_mode="y",
-                black_bg=True,
-                title=f"pwm_enabled contrast\n(shifted {event_time_offset.round(2)})",
-            )
-            display.savefig(out_dir / 'time_shift' /
-                            f"eto-{event_time_offset}_zmap.png")
-            display.close()
+    out = Parallel(n_jobs=n_jobs)((delayed(_fit_glm_time_shift)(
+        pwd, time_stamps, events, event, hrf, transformations,
+        smoothing_fwhm, out_dir, event_time_offset))
+        for event_time_offset in tqdm(event_time_offsets))
 
     if out_dir is not None:
         fig, ax = plt.subplots()

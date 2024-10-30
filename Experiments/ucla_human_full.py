@@ -41,15 +41,15 @@ from nilearn import plotting
 from skimage.measure import label
 import nibabel as nib
 import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
 from matplotlib.transforms import BlendedGenericTransform
 
 base_path = Path('fUS_data/UCLA/data/UCLA_008/10-23-2024/Functional_runs/run-02')
 sequence = 'seq-IQ_3D_3cmto4cm_Depth_4MHz_1a_3c_200loops_-1Gain_2rp'  # 'seq-2d_plane_wave'  # 'seq-IQ_3D_3cmto4cm_Depth_5MHz_1a_3c_200loops_-1Gain_2rp'
 
-
 """
 base_path = Path('fUS_data/UCLA/data/UCLA_009/Functional_runs/run-01')
-sequence = 'seq-IQ_3D_2cmto3cm_Depth_5MHz_1a_3c_200loops_-1Gain_2rp'
+sequence = 'seq-IQ_3D_2cmto3cm_Depth_5MHz_1a_3c_200loops_-1Gain_2rp'  # 'seq-2d_plane_wave'
 """
 experiment_folder = base_path / 'acquisitions' / sequence
 
@@ -279,7 +279,7 @@ plt.close(fig)
 )"""
 mean_pwd = mean_img(pwd_reg)
 nib.save(mean_pwd, experiment_folder / 'glm' / 'pwd_mean.nii.gz')
-events_shifted = events.copy()
+events_shifted = events2.copy()
 events_shifted['onset'] += event_offset
 design_matrix = make_first_level_design_matrix(
     time_stamps,
@@ -301,15 +301,16 @@ nib.save(zmap, experiment_folder / 'glm' / 'pwd_zmap.nii.gz')
 display = plotting.plot_stat_map(
     zmap,
     bg_img=mean_pwd,
-    cut_coords=[0],
+    cut_coords=[zmap.shape[1] // 2],
     threshold=3,
     display_mode="y",
     black_bg=True,
-    title=event,
+    title='audio',
 )
 display.savefig(experiment_folder / 'glm' / 'pwd_zmap.png')
 
 # time course
+slice_idxs = [1] if min(pwd.shape) == 1 else [0, 1, 2]
 zmap_data = np.array(zmap.dataobj)
 zmap_data[np.abs(zmap_data) < 3] = np.nan
 clusters = label(~np.isnan(zmap_data))
@@ -320,21 +321,27 @@ pwd_data /= pwd_data.std(axis=-1, keepdims=True)
 roi_idx = 0
 while roi_idx < np.nanmax(clusters):
     ext_idx = tuple(np.unravel_index(np.nanargmax(zmap_data), zmap_data.shape))
-    ext_idx = tuple(np.mean(np.array(np.where(
+    ext_idx_show = tuple(np.mean(np.array(np.where(
         clusters == clusters[ext_idx])), axis=1
     ).round().astype(int))
-    fig, axs = plt.subplots(2, 1, figsize=(6, 6))
-    ax = axs[0]
-    i = 1
-    idx = tuple([slice(None)] * i + [ext_idx[i]])
-    ax.imshow(np.array(pwd_reg.dataobj).mean(axis=-1)[idx].T, cmap='gray', aspect='auto')
-    ax.imshow(zmap_data[idx].T, cmap='RdBu_r', aspect='auto', vmin=-5, vmax=5)
-    ext_idx_2d = np.delete(ext_idx, i).T
-    ax.axvline(ext_idx_2d[0], color='red', linewidth=0.25)
-    ax.axhline(ext_idx_2d[1], color='red', linewidth=0.25)
-    ax.axis('off')
-    ax = axs[1]
-    ax.plot(time_stamps, pwd_data[tuple(ext_idx)])
+    fig = plt.figure(figsize=(6, 6))
+    gs = GridSpec(3, 2, figure=fig)
+    if len(slice_idxs) == 1:
+        axs = [fig.add_subplot(gs[:2, :2])]
+    else:
+        axs = [fig.add_subplot(gs[i, j]) for i in range(2) for j in range(2)]
+        axs[-1].axis('off')
+    for slice_idx, i in enumerate(slice_idxs):
+        ax = axs[slice_idx]
+        idx = tuple([slice(None)] * i + [ext_idx_show[i]])
+        ax.imshow(np.array(pwd_reg.dataobj).mean(axis=-1)[idx].T, cmap='gray', aspect='auto')
+        ax.imshow(zmap_data[idx].T, cmap='RdBu_r', aspect='auto', vmin=-5, vmax=5)
+        ext_idx_2d = np.delete(ext_idx, i).T
+        ax.axvline(ext_idx_2d[0], color='red', linewidth=0.25)
+        ax.axhline(ext_idx_2d[1], color='red', linewidth=0.25)
+        ax.axis('off')
+    ax = fig.add_subplot(gs[-1, :])
+    ax.plot(time_stamps, pwd_data[ext_idx])
     ymax = np.min([10, np.max(np.abs(pwd_data[tuple(ext_idx)]))])
     ax.set_ylim([-ymax, ymax])
     for _, (onset, trial_type, duration) in events.iterrows():
@@ -343,5 +350,6 @@ while roi_idx < np.nanmax(clusters):
                 ha='center', va='center',
                 transform=BlendedGenericTransform(ax.transData, ax.transAxes))
     fig.savefig(experiment_folder / 'glm' / f'pwd_tc{roi_idx}.png')
+    plt.close(fig)
     zmap_data[clusters == clusters[ext_idx]] = np.nan
     roi_idx += 1
