@@ -40,6 +40,10 @@ from matplotlib.transforms import BlendedGenericTransform
 
 base_path = Path('fUS_data/UCLA/data/UCLA_008/10-24-2024/Functional_runs/run-04')
 sequence = 'seq-2d_plane_wave'  # 'seq-IQ_3D_3cmto4cm_Depth_5MHz_1a_3c_200loops_-1Gain_2rp'
+"""
+
+sequence = 'seq-IQ_3D_2cmto3cm_Depth_5MHz_1a_3c_200loops_-1Gain_2rp'
+"""
 experiment_folder = base_path / 'acquisitions' / sequence
 
 event_offset = 0
@@ -212,7 +216,7 @@ else:
         pwd_reg[i + 1] = moved
         transformations[i + 1] = reg_affine
     transformations = transformations[:, :3].reshape(transformations.shape[0], -1).T
-    pwd_reg = nib.Nifti1Image(pwd_reg, pwd.affine)
+    pwd_reg = nib.Nifti1Image(pwd_reg.transpose(1, 2, 3, 0), pwd.affine)
 
 # power_doppler_path = experiment_folder / 'power_doppler'
 
@@ -221,7 +225,7 @@ pwd, time_stamps = get_power_doppler_nii(
     power_doppler_path, num_tissue_components='50'
 )
 """
-event = 'right_hand_squeeze'
+event = min(set(events.trial_type))
 events2 = events[events['trial_type'] == event]
 shifts, max_tstats, best_offset = fit_glm_time_shift(
     pwd_reg, time_stamps,

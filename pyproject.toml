@@ -19,6 +19,7 @@ dependencies = [
     "matplotlib",
     "nilearn",
     "antspyx",
+    "dipy",
     "SimpleITK",
     "imageio", 
     "imageio-ffmpeg"
