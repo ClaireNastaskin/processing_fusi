@@ -154,7 +154,7 @@ def _fit_glm_time_shift(pwd, time_stamps, events, event, hrf, transformations,
             threshold=3,
             display_mode="y",
             black_bg=True,
-            title=f"pwm_enabled contrast\n(shifted {event_time_offset.round(2)})",
+            title=f"{event}t\n(shifted {event_time_offset.round(2)})",
         )
         display.savefig(out_dir / 'time_shift' /
                         f"eto-{event_time_offset}_zmap.png")

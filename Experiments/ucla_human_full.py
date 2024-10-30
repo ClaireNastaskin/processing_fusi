@@ -259,7 +259,7 @@ if not (experiment_folder / 'glm' / 'shifts.png').exists():
         event, events2, shift=20,
         smoothing_fwhm=smoothing_fwhm, hrf='glover',
         transformations=transformations,
-        out_dir=experiment_folder / 'glm'
+        out_dir=experiment_folder / 'glm', n_jobs=-5
     )
     fig, ax = plt.subplots()
     ax.plot(shifts, max_tstats)
