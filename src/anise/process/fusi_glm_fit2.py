@@ -92,7 +92,12 @@ def fit_glm(power_doppler_img, time_stamps,
     kwargs = dict()
     if transformations is not None:
         kwargs['add_regs'] = transformations.T
-        kwargs['add_reg_names'] = ["tx", "ty", "rot"]
+        assert transformations.shape[1] in (3, 12)
+        kwargs['add_reg_names'] = \
+            ["tx", "ty", "rot"] if transformations.shape[1] == 3 else \
+            ["r00", "r01", "r02", "tx",
+             "r10", "r11", "r12", "ty",
+             "r20", "r21", "r22", "tz"]
     design_matrix = make_first_level_design_matrix(
         time_stamps,
         events,

@@ -1,5 +1,7 @@
 from pathlib import Path
 import numpy as np
+import io
+from contextlib import redirect_stdout
 from tqdm import tqdm
 import json
 import jax
@@ -23,6 +25,7 @@ from mangrove.schema.wrapper.bmode_wrapper import BModeFile
 from mangrove.power_doppler.pca_metal import PCAMetalPowerDoppler
 
 # GLM
+from dipy.align import affine_registration
 from anise.utils import get_power_doppler_nii, register_image_stack
 from anise.process.fusi_glm_fit2 import rat_hrf, fit_glm_time_shift
 from nilearn.glm.first_level import make_first_level_design_matrix, FirstLevelModel
@@ -36,7 +39,7 @@ import matplotlib.pyplot as plt
 from matplotlib.transforms import BlendedGenericTransform
 
 base_path = Path('fUS_data/UCLA/data/UCLA_008/10-24-2024/Functional_runs/run-04')
-sequence = 'seq-IQ_3D_3cmto4cm_Depth_5MHz_1a_3c_200loops_-1Gain_2rp'
+sequence = 'seq-2d_plane_wave'  # 'seq-IQ_3D_3cmto4cm_Depth_5MHz_1a_3c_200loops_-1Gain_2rp'
 experiment_folder = base_path / 'acquisitions' / sequence
 
 event_offset = 0
@@ -185,10 +188,32 @@ np.savetxt(experiment_folder / 'power_doppler' / 'pwd_timestamps.txt', time_stam
 pwd = nib.load(experiment_folder / 'power_doppler' / 'pwd.nii.gz')
 time_stamps = np.loadtxt(experiment_folder / 'power_doppler' / 'pwd_timestamps.txt')
 
-pwd_reg, transformations = register_image_stack(
-    np.array(pwd.dataobj)[:, 0]
-)
-pwd_reg = nib.Nifti1Image(pwd_reg[:, None], pwd.affine)
+if pwd.shape[1] < 10:
+    pwd_reg, transformations = register_image_stack(
+        np.array(pwd.dataobj)[:, pwd.shape[1] // 2]
+    )
+    pwd_reg = nib.Nifti1Image(pwd_reg[:, None], pwd.affine)
+else:
+    pwd_data = np.array(pwd.dataobj).transpose(3, 0, 1, 2)
+    static = pwd_data[0]
+    pwd_reg = np.zeros_like(pwd_data)
+    pwd_reg[0] = static
+    transformations = np.zeros((pwd_data.shape[0], 4, 4))
+    log = io.StringIO()
+    for i, moving in enumerate(tqdm(pwd_data[1:])):
+        with redirect_stdout(log):
+            moved, reg_affine = affine_registration(
+                moving,
+                static,
+                moving_affine=pwd.affine,
+                static_affine=pwd.affine,
+                pipeline=['rigid'],
+            )
+        pwd_reg[i + 1] = moved
+        transformations[i + 1] = reg_affine
+    transformations = transformations[:, :3].reshape(transformations.shape[0], -1).T
+    pwd_reg = nib.Nifti1Image(pwd_reg, pwd.affine)
+
 # power_doppler_path = experiment_folder / 'power_doppler'
 
 """
