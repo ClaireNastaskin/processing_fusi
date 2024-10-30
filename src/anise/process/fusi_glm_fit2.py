@@ -91,7 +91,7 @@ def fit_glm(power_doppler_img, time_stamps,
     )
     kwargs = dict()
     if transformations is not None:
-        kwargs['add_regs'] = transformations.T,
+        kwargs['add_regs'] = transformations.T
         kwargs['add_reg_names'] = ["tx", "ty", "rot"]
     design_matrix = make_first_level_design_matrix(
         time_stamps,
@@ -208,7 +208,6 @@ def fit_glm_time_shift(power_doppler_img, time_stamps,
         fig.savefig(out_dir / "zmaptrend.png")
         plt.close(fig)
 
-
     # find best voxels
     zmap_data = np.array([np.array(zmap.dataobj).ravel() for zmap in zmaps])
     zmap_best_idxs = np.argsort(zmap_data.max(axis=0))[-n_best_vox:]
@@ -220,17 +219,17 @@ def fit_glm_time_shift(power_doppler_img, time_stamps,
     best_zmap = zmaps[best_idx]
 
     if out_dir is not None:
-         # plot intensity values over time shifts
-         fig, ax = plt.subplots()
-         ax.plot(event_time_offsets, zmap_data[:, zmap_best_idxs])
-         ax.set_xlabel('Time Shift (s)')
-         ax.set_ylabel('T-Statistic')
-         fig.savefig(out_dir / 'best_voxel_time_shifts.png')
+        # plot intensity values over time shifts
+        fig, ax = plt.subplots()
+        ax.plot(event_time_offsets, zmap_data[:, zmap_best_idxs])
+        ax.set_xlabel('Time Shift (s)')
+        ax.set_ylabel('T-Statistic')
+        fig.savefig(out_dir / 'best_voxel_time_shifts.png')
 
-         copyfile(
-             out_dir / 'time_shift' / f"eto-{best_offset}_zmap.png",
-             out_dir / "best_zmap.png"
-         )
-         nib.save(best_zmap, out_dir / "best_zmap.nii.gz")
+        copyfile(
+            out_dir / 'time_shift' / f"eto-{best_offset}_zmap.png",
+            out_dir / "best_zmap.png"
+        )
+        nib.save(best_zmap, out_dir / "best_zmap.nii.gz")
 
     return event_time_offsets, max_zmaps, best_offset

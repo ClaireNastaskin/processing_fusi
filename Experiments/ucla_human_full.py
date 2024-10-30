@@ -30,11 +30,13 @@ from nilearn.image import mean_img
 
 # plotting
 from nilearn import plotting
+from skimage.measure import label
 import nibabel as nib
 import matplotlib.pyplot as plt
+from matplotlib.transforms import BlendedGenericTransform
 
-base_path = Path('fUS_data/UCLA/data/UCLA_009/Functional_runs/run-01')
-sequence = 'seq-2d_plane_wave'
+base_path = Path('fUS_data/UCLA/data/UCLA_008/10-24-2024/Functional_runs/run-04')
+sequence = 'seq-IQ_3D_3cmto4cm_Depth_5MHz_1a_3c_200loops_-1Gain_2rp'
 experiment_folder = base_path / 'acquisitions' / sequence
 
 event_offset = 0
@@ -138,8 +140,24 @@ for raw_data_file in tqdm(list(raw_data_files)):
 
     pwd_frames[timestamp] = pwd_frame
 
-
+""" # for use if bmode is done but not pwd
+bmode_files = list((experiment_folder / "beamformed").glob("[!.]*.h5"))
+pwd_frames = dict()
+for bmode_file in tqdm(bmode_files):
+    match = re.search(r'\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{6}', bmode_file.stem)
+    timestamp = datetime.strptime(match.group(0).replace('-', ':'), '%Y:%m:%dT%H:%M:%S:%f')
+    beamformed = h5py.File(bmode_file)['beamformed'][:]
+    pwd_frame = PCAMetalPowerDoppler(
+        num_tissue_components=50,
+        num_blood_and_tissue_components=None
+    ).fit_transform(
+        beamformed.transpose(1, 2, 3, 0)
+    )
+    del beamformed
+    pwd_frames[timestamp] = pwd_frame
 """
+
+"""  # for use if bmode and power doppler are done
 pwd_files = (experiment_folder / "power_doppler").glob("[!.]*.h5")
 pwd_frames = dict()
 for pwd_file in tqdm(list(pwd_files)):
@@ -181,9 +199,11 @@ pwd, time_stamps = get_power_doppler_nii(
 event = 'right_hand_squeeze'
 events2 = events[events['trial_type'] == event]
 shifts, max_tstats, best_offset = fit_glm_time_shift(
-    pwd_reg, time_stamps, event, events2, shift=20,
+    pwd_reg, time_stamps,
+    event, events2, shift=20,
     smoothing_fwhm=smoothing_fwhm, hrf='glover',
-    transformations=transformations
+    transformations=transformations,
+    out_dir=experiment_folder / 'power_doppler'
 )
 fig, ax = plt.subplots()
 ax.plot(shifts, max_tstats)
@@ -227,3 +247,40 @@ display = plotting.plot_stat_map(
     title=event,
 )
 display.savefig(experiment_folder / 'power_doppler' / 'pwd_zmap.png')
+
+# time course
+zmap_data = np.array(zmap.dataobj)
+zmap_data[np.abs(zmap_data) < 3] = np.nan
+clusters = label(~np.isnan(zmap_data))
+pwd_data = np.array(pwd_reg.dataobj).copy()
+pwd_data -= pwd_data.mean(axis=-1, keepdims=True)
+pwd_data /= pwd_data.std(axis=-1, keepdims=True)
+
+roi_idx = 0
+while roi_idx < np.nanmax(clusters):
+    ext_idx = tuple(np.unravel_index(np.nanargmax(zmap_data), zmap_data.shape))
+    ext_idx = tuple(np.mean(np.array(np.where(
+        clusters == clusters[ext_idx])), axis=1
+    ).round().astype(int))
+    fig, axs = plt.subplots(2, 1, figsize=(6, 6))
+    ax = axs[0]
+    i = 1
+    idx = tuple([slice(None)] * i + [ext_idx[i]])
+    ax.imshow(np.array(pwd_reg.dataobj).mean(axis=-1)[idx].T, cmap='gray', aspect='auto')
+    ax.imshow(zmap_data[idx].T, cmap='RdBu_r', aspect='auto', vmin=-5, vmax=5)
+    ext_idx_2d = np.delete(ext_idx, i).T
+    ax.axvline(ext_idx_2d[0], color='red', linewidth=0.25)
+    ax.axhline(ext_idx_2d[1], color='red', linewidth=0.25)
+    ax.axis('off')
+    ax = axs[1]
+    ax.plot(time_stamps, pwd_data[tuple(ext_idx)])
+    ymax = np.min([10, np.max(np.abs(pwd_data[tuple(ext_idx)]))])
+    ax.set_ylim([-ymax, ymax])
+    for _, (onset, trial_type, duration) in events.iterrows():
+        ax.axvspan(onset, onset + duration, color='gray', alpha=0.25)
+        ax.text(onset + duration / 2, 0.95, trial_type.replace('_', '\n'),
+                ha='center', va='center',
+                transform=BlendedGenericTransform(ax.transData, ax.transAxes))
+    fig.savefig(experiment_folder / 'power_doppler' / f'pwd_tc{roi_idx}.png')
+    zmap_data[clusters == clusters[ext_idx]] = np.nan
+    roi_idx += 1

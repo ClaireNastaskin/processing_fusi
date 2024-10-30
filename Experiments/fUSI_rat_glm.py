@@ -54,9 +54,10 @@ def do_one_glm(pwd_path):
         anise.process.fusi_glm_fit2.fit_glm_time_shift(
             pwd_img, time_stamps, event, events,
             out_dir=this_glm_path / basename,
-            transformations= transformations, shift=20
+            transformations=transformations, shift=20
         )
     return shifts, max_zmaps, best_offset
+
 
 output = Parallel(n_jobs=20)(
     delayed(do_one_glm)(pwd_path)
