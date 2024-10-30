@@ -144,9 +144,6 @@ def _fit_glm_time_shift(pwd, time_stamps, events, event, hrf, transformations,
     if out_dir is not None:
         nib.save(zmap, (out_dir / 'time_shift' /
                         f"eto-{event_time_offset}_zmap.nii.gz"))
-    zmaps.append(zmap)
-    max_zmap = np.max(zmap.get_fdata())
-    max_zmaps.append(max_zmap)
 
     if out_dir is not None:
         mean_image = mean_img(pwd)
@@ -162,6 +159,7 @@ def _fit_glm_time_shift(pwd, time_stamps, events, event, hrf, transformations,
         display.savefig(out_dir / 'time_shift' /
                         f"eto-{event_time_offset}_zmap.png")
         display.close()
+    return zmap
 
 
 def fit_glm_time_shift(pwd, time_stamps, event, events, out_dir=None, hrf='rat',
@@ -209,13 +207,12 @@ def fit_glm_time_shift(pwd, time_stamps, event, events, out_dir=None, hrf='rat',
     if out_dir is not None:
         (out_dir / 'time_shift').mkdir(parents=True, exist_ok=True)
 
-    max_zmaps = list()
-    zmaps = list()
     event_time_offsets = np.arange(-shift, shift + shift_res, shift_res).round(2)
-    out = Parallel(n_jobs=n_jobs)((delayed(_fit_glm_time_shift)(
+    zmaps = Parallel(n_jobs=n_jobs)((delayed(_fit_glm_time_shift)(
         pwd, time_stamps, events, event, hrf, transformations,
         smoothing_fwhm, out_dir, event_time_offset))
         for event_time_offset in tqdm(event_time_offsets))
+    max_zmaps = [np.max(zmap.get_fdata()) for zmap in zmaps]
 
     if out_dir is not None:
         fig, ax = plt.subplots()
