@@ -89,7 +89,7 @@ for i, row in tqdm(df.iterrows(), total=len(df)):
          row['power_doppler_path'],
          np.abs(transformations).max(),
          (np.abs(delta_activity) > 0.5).sum())
-    
+
     fig, ax = plt.subplots()
     ax.plot(transformations.T)
     ax.set_ylim([-5, 5])

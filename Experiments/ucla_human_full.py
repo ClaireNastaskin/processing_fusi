@@ -38,12 +38,13 @@ from nilearn.image import mean_img
 
 # plotting
 from nilearn import plotting
-from skimage.measure import label
+import skimage.measure
 import nibabel as nib
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from matplotlib.transforms import BlendedGenericTransform
 
+overwrite = True
 base_path = Path('fUS_data/UCLA/data/UCLA_008/10-23-2024/Functional_runs/run-02')
 sequence = 'seq-IQ_3D_3cmto4cm_Depth_4MHz_1a_3c_200loops_-1Gain_2rp'  # 'seq-2d_plane_wave'  # 'seq-IQ_3D_3cmto4cm_Depth_5MHz_1a_3c_200loops_-1Gain_2rp'
 
@@ -108,7 +109,21 @@ def raw_to_power_doppler(experiment_folder):
                               pwd_file.stem)
             timestamp = datetime.strptime(
                 match.group(0).replace('-', ':'), '%Y:%m:%dT%H:%M:%S:%f')
-            pwd_frames[timestamp] = h5py.File(pwd_file)['power_doppler'][:]
+            pwd_h5 = h5py.File(pwd_file)
+            pwd_frames[timestamp] = pwd_h5['power_doppler'][:]
+        affine = np.diag([
+            1000 * (pwd_h5['lateral'][1] - pwd_h5['lateral'][0]),
+            1000 * (pwd_h5['elevation'][1] - pwd_h5['elevation'][0]),
+            1000 * (pwd_h5['depth'][1] - pwd_h5['depth'][0]),
+            1
+        ])
+        elevation_idx = 0 if pwd_frames[timestamp].shape[1] < 15 else \
+            pwd_frames[timestamp].shape[1] // 2
+        affine[:3, 3] = [
+            pwd_h5['lateral'][0],
+            pwd_h5['elevation'][elevation_idx],
+            pwd_h5['depth'][0]
+        ]
 
     """ # partially pre-computed, don't use too slow
     bmode_files = list((experiment_folder / "beamformed").glob("[!.]*.h5"))
@@ -169,12 +184,26 @@ def raw_to_power_doppler(experiment_folder):
             del beamformed
 
             pwd_frames[timestamp] = pwd_frame
+        affine = np.diag([
+            1000 * (vbeam_setup.scan.x[1] - vbeam_setup.scan.x[0]),
+            1000 * (vbeam_setup.scan.y[1] - vbeam_setup.scan.y[0]),
+            1000 * (vbeam_setup.scan.z[1] - vbeam_setup.scan.z[0]),
+            1
+        ])
+        elevation_idx = 0 if pwd_frames[timestamp].shape[1] < 15 else \
+            pwd_frames[timestamp].shape[1] // 2
+        affine[:3, 3] = [
+            vbeam_setup.scan.x[0],
+            vbeam_setup.scan.y[elevation_idx],
+            vbeam_setup.scan.z[0]
+        ]
 
     time_stamps = sorted(pwd_frames)
+
     pwd = nib.Nifti1Image(
         np.array([pwd_frames.get(timestamp)
                   for timestamp in time_stamps]).transpose(1, 2, 3, 0),
-        np.diag([0.15, 0.15, 0.15, 1])
+        affine
     )
     del pwd_frames
     time_stamps = np.array([(timestamp - time_stamps[0]).total_seconds()
@@ -183,7 +212,7 @@ def raw_to_power_doppler(experiment_folder):
 
 
 (experiment_folder / 'power_doppler').mkdir(parents=True, exist_ok=True)
-if not (experiment_folder / 'power_doppler' / 'pwd.nii.gz').exists():
+if not (experiment_folder / 'power_doppler' / 'pwd.nii.gz').exists() or overwrite:
     pwd, time_stamps = raw_to_power_doppler(experiment_folder)
     nib.save(pwd, experiment_folder / 'power_doppler' / 'pwd.nii.gz')
     np.savetxt(experiment_folder / 'power_doppler' / 'pwd_timestamps.txt', time_stamps)
@@ -196,18 +225,19 @@ time_stamps = np.loadtxt(experiment_folder / 'power_doppler' / 'pwd_timestamps.t
 
 # registration
 (experiment_folder / 'reg').mkdir(parents=True, exist_ok=True)
-if (experiment_folder / 'reg' / 'pwd.nii.gz').exists():
+if (experiment_folder / 'reg' / 'pwd.nii.gz').exists() and not overwrite:
     pwd_reg = nib.load(experiment_folder / 'reg' / 'pwd.nii.gz')
     transformations = np.loadtxt(
         experiment_folder / 'reg' / 'transformations.txt'
     )
 else:
-    if pwd.shape[1] < 10:
+    if pwd.shape[1] < 15:
         pwd_reg, transformations = register_image_stack(
             np.array(pwd.dataobj)[:, pwd.shape[1] // 2]
         )
         pwd_reg = nib.Nifti1Image(pwd_reg[:, None], pwd.affine)
         transformations = transformations.T
+        trans_labels = ['tx', 'ty', 'rot']
     else:
         pwd_data = np.array(pwd.dataobj).transpose(3, 0, 1, 2)
         static = pwd_data[0]
@@ -241,10 +271,38 @@ else:
             axis=-1,
         )  # convert to quaternions
         """
-        transformations = _affine_to_quat(reg_affines).T
+        transformations = _affine_to_quat(reg_affines)
         pwd_reg = nib.Nifti1Image(pwd_reg.transpose(1, 2, 3, 0), pwd.affine)
+        trans_labels = ["rx", "ry", "rz", "tx", "ty", "tz"]
     nib.save(pwd_reg, experiment_folder / 'reg' / 'pwd.nii.gz')
     np.savetxt(experiment_folder / 'reg' / 'transformations.txt', transformations)
+
+    # plot
+    fig, ax = plt.subplots()
+    trans_labels_trans = [label for label in trans_labels if label.startswith('t')]
+    # TO DO: this scales elevation by depth for 2D since elevation is skipped
+    ax.plot(np.array([transformations[:, trans_labels.index(label)] *
+                      pwd_reg.affine[trans_labels_trans.index(label),
+                                     trans_labels_trans.index(label)]
+                      for label in trans_labels_trans]).T,
+            label=trans_labels_trans)
+    ax.set_xlabel('Frame #')
+    ax.set_ylabel('Displacement (mm)')
+    ax.set_ylim([-10, 10])
+    ax2 = ax.twinx()
+    for _ in range(len(trans_labels_trans)):
+        ax2.plot([])  # get on same color cycle
+    trans_labels_rot = [label for label in trans_labels if label.startswith('r')]
+    ax2.plot(np.array([np.rad2deg(transformations[:, trans_labels.index(label)])
+                       for label in trans_labels_rot]).T,
+             label=trans_labels_rot)
+    ax2.set_ylim([-10, 10])
+    ax2.set_ylabel('Displacement (degrees)')
+    ax.legend(loc='upper left')
+    ax2.legend(loc='upper right')
+    fig.tight_layout()
+    fig.savefig(experiment_folder / 'reg' / 'movement.png')
+    plt.close(fig)
 
 
 # define events of interest
@@ -253,7 +311,7 @@ events2 = events[events['trial_type'] == event]
 
 # glm
 (experiment_folder / 'glm').mkdir(parents=True, exist_ok=True)
-if not (experiment_folder / 'glm' / 'shifts.png').exists():
+if not (experiment_folder / 'glm' / 'shifts.png').exists() or overwrite:
     shifts, max_tstats, best_offset = fit_glm_time_shift(
         pwd_reg, time_stamps,
         event, events2, shift=20,
@@ -269,49 +327,56 @@ if not (experiment_folder / 'glm' / 'shifts.png').exists():
     plt.close(fig)
 
 
-"""pwd, time_stamps = get_power_doppler_nii(
-    power_doppler_path, num_tissue_components='50'
-)"""
-mean_pwd = mean_img(pwd_reg)
-nib.save(mean_pwd, experiment_folder / 'glm' / 'pwd_mean.nii.gz')
-events_shifted = events2.copy()
-events_shifted['onset'] += event_offset
-design_matrix = make_first_level_design_matrix(
-    time_stamps,
-    events_shifted,
-    drift_model="polynomial",
-    drift_order=1,
-    hrf_model='glover'
-)
-glm = FirstLevelModel(minimize_memory=False, mask_img=False,
-                      smoothing_fwhm=smoothing_fwhm, standardize=True).fit(
-    pwd_reg, design_matrices=design_matrix
-)
-zmap = glm.compute_contrast(
-    event,
-    output_type="stat"
-)
-nib.save(zmap, experiment_folder / 'glm' / 'pwd_zmap.nii.gz')
+if (experiment_folder / 'glm' / 'pwd_zmap.nii.gz').exists() and not overwrite:
+    zmap = nib.load(experiment_folder / 'glm' / 'pwd_zmap.nii.gz')
+    mean_pwd = nib.load(experiment_folder / 'glm' / 'pwd_mean.nii.gz')
+else:
+    mean_pwd = mean_img(pwd_reg)
+    nib.save(mean_pwd, experiment_folder / 'glm' / 'pwd_mean.nii.gz')
+    events_shifted = events2.copy()
+    events_shifted['onset'] += event_offset
+    design_matrix = make_first_level_design_matrix(
+        time_stamps,
+        events_shifted,
+        drift_model="polynomial",
+        drift_order=1,
+        hrf_model='glover'
+    )
+    glm = FirstLevelModel(minimize_memory=False, mask_img=False,
+                          smoothing_fwhm=smoothing_fwhm, standardize=True).fit(
+        pwd_reg, design_matrices=design_matrix
+    )
+    zmap = glm.compute_contrast(
+        event,
+        output_type="stat"
+    )
+    nib.save(zmap, experiment_folder / 'glm' / 'pwd_zmap.nii.gz')
+    nib.save(nib.Nifti1Image(
+        (np.abs(np.array(zmap.dataobj)) > 3).astype(np.float32),
+        zmap.affine),
+        experiment_folder / 'glm' / 'pwd_zmap_mask.nii.gz'
+    )
 
-display = plotting.plot_stat_map(
-    zmap,
-    bg_img=mean_pwd,
-    cut_coords=[zmap.shape[1] // 2],
-    threshold=3,
-    display_mode="y",
-    black_bg=True,
-    title='audio',
-)
-display.savefig(experiment_folder / 'glm' / 'pwd_zmap.png')
+    display = plotting.plot_stat_map(
+        zmap,
+        bg_img=mean_pwd,
+        cut_coords=[zmap.shape[1] // 2],
+        threshold=3,
+        display_mode="y",
+        black_bg=True,
+        title='audio',
+    )
+    display.savefig(experiment_folder / 'glm' / 'pwd_zmap.png')
 
 # time course
-slice_idxs = [1] if min(pwd.shape) == 1 else [0, 1, 2]
+slice_idxs = [1] if min(pwd_reg.shape) == 1 else [0, 1, 2]
 zmap_data = np.array(zmap.dataobj)
 zmap_data[np.abs(zmap_data) < 3] = np.nan
-clusters = label(~np.isnan(zmap_data))
+clusters = skimage.measure.label(~np.isnan(zmap_data))
 pwd_data = np.array(pwd_reg.dataobj).copy()
 pwd_data -= pwd_data.mean(axis=-1, keepdims=True)
-pwd_data /= pwd_data.std(axis=-1, keepdims=True)
+pwd_data = np.divide(pwd_data, pwd_data.std(axis=-1, keepdims=True),
+                     where=pwd_data.std(axis=-1, keepdims=True) != 0)
 
 roi_idx = 0
 while roi_idx < np.nanmax(clusters):
@@ -337,7 +402,7 @@ while roi_idx < np.nanmax(clusters):
         ax.axis('off')
     ax = fig.add_subplot(gs[-1, :])
     ax.plot(time_stamps, pwd_data[ext_idx])
-    ymax = np.min([10, np.max(np.abs(pwd_data[tuple(ext_idx)]))])
+    ymax = np.min([10, np.nanmax(np.abs(pwd_data[tuple(ext_idx)]))])
     ax.set_ylim([-ymax, ymax])
     for _, (onset, trial_type, duration) in events.iterrows():
         ax.axvspan(onset, onset + duration, color='gray', alpha=0.25)
@@ -348,3 +413,19 @@ while roi_idx < np.nanmax(clusters):
     plt.close(fig)
     zmap_data[clusters == clusters[ext_idx]] = np.nan
     roi_idx += 1
+
+
+# 3D rendering
+import pyvista as pv
+zmap_data = np.array(zmap.dataobj)
+zmap_data[np.abs(zmap_data) < 3] = np.nan
+pwd_mean_data = np.array(mean_pwd.dataobj)#
+# pwd_mean_data[np.isinf(pwd_mean_data)] = np.nan
+# pwd_mean_data[np.abs(pwd_mean_data) < np.quantile(np.abs(pwd_mean_data), 0.5)] = np.nan
+# pwd_mean_vol = pv.ImageData(dimensions=pwd_mean_data.shape, spacing=(1, 1, 1), origin=(0, 0, 0))
+# pwd_mean_vol.point_data['data'] = pwd_mean_data.ravel(order='F')
+pl = pv.Plotter()
+# pl.add_mesh(pwd_mean_vol, nan_opacity=0, cmap="gray_r", opacity=0.25)
+pl.add_volume(pwd_mean_data, cmap='magma')
+pl.add_volume(zmap_data, clim=(-5, 5), cmap="coolwarm")
+pl.show()
