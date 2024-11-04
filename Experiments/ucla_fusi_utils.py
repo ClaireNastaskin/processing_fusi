@@ -26,9 +26,9 @@ class DirectoryManager:
     def __init__(self, base_path, sequence):
         self.base_path = base_path
         self.sequence = sequence
-        self.log_file_path = self.base_path / 'logs' / 'task_1.log'
-        self.task_event_file_path = self.base_path / 'streams' / 'task_1-event_stream.h5'
-        self.probe_event_file_path = self.base_path / 'streams' / 'probe_1-event_stream.h5'
+        self.log_file_path = self.base_path / 'logs' / 'task.log'
+        self.task_event_file_path = self.base_path / 'streams' / 'task-event_stream.h5'
+        self.probe_event_file_path = self.base_path / 'streams' / 'probe-event_stream.h5'
         self.sequence_data_path = self.base_path / 'acquisitions' / self.sequence
         self.raw_data_path = self.sequence_data_path / 'raw_frame_data'
         self.beamformed_path = self.sequence_data_path / 'beamformed'
@@ -333,6 +333,61 @@ def register_image_stack(image_stack):
     registered_array = np.stack([sitk.GetArrayFromImage(img) for img in registered_images], axis=2)
     
     return registered_array, transform_params
+    
+
+import SimpleITK as sitk
+import numpy as np
+
+def register_3d_image_stack(image_stack):
+    # Assuming `image_stack` has dimensions (x, y, z, time)
+    num_frames = image_stack.shape[3]
+    
+    # Convert each 3D volume to a SimpleITK image
+    sitk_images = [sitk.GetImageFromArray(image_stack[:, :, :, t]) for t in range(num_frames)]
+    fixed_image = sitk_images[0]
+    registered_images = [fixed_image]
+    
+    # Array to store transformation parameters (tx, ty, tz, and angles if applicable)
+    transform_params = np.zeros((3, num_frames))  # 3 for translations in x, y, z
+
+    # Setup registration method with appropriate metric and optimizer
+    registration_method = sitk.ImageRegistrationMethod()
+    registration_method.SetMetricAsCorrelation()  # Metric suitable for small motions
+    registration_method.SetOptimizerAsRegularStepGradientDescent(learningRate=0.1, minStep=1e-4, numberOfIterations=100)
+    registration_method.SetOptimizerScalesFromPhysicalShift()
+    registration_method.SetInterpolator(sitk.sitkLinear)
+    
+    # Use a 3D Euler transform for 3D volumes
+    initial_transform = sitk.Euler3DTransform()
+    initial_transform.SetIdentity()
+    registration_method.SetInitialTransform(initial_transform)
+
+    # Apply registration for each 3D volume in the time sequence
+    for i, moving_image in enumerate(sitk_images[1:], start=1):
+        # Initialize a 3D transform with moments-based alignment
+        initial_transform = sitk.Euler3DTransform(
+            sitk.CenteredTransformInitializer(fixed_image, moving_image, sitk.Euler3DTransform(), sitk.CenteredTransformInitializerFilter.MOMENTS)
+        )
+        registration_method.SetInitialTransform(initial_transform)
+
+        # Execute registration
+        final_transform = registration_method.Execute(fixed_image, moving_image)
+        tx, ty, tz = final_transform.GetTranslation()
+        
+        # Store transformation parameters for analysis
+        transform_params[0, i] = tx
+        transform_params[1, i] = ty
+        transform_params[2, i] = tz
+
+        # Resample the moving image to align it with the fixed image
+        resampled_image = sitk.Resample(moving_image, fixed_image, final_transform, sitk.sitkLinear, 0.0, moving_image.GetPixelID())
+        registered_images.append(resampled_image)
+    
+    # Convert the list of SimpleITK images back to a NumPy array
+    registered_array = np.stack([sitk.GetArrayFromImage(img) for img in registered_images], axis=-1)
+    
+    return registered_array, transform_params
+
 
 
 import ants
@@ -446,7 +501,7 @@ def calculate_stimulus_eventsV2(behavior_df):
 
 
 
-def extract_probe_events_from_h5(h5_file_path):
+def extract_probe_events_from_h5(h5_file_path,sequence):
     """
     Reads an HDF5 file, extracts timestamps and event descriptions from the dataset, and organizes this information into a DataFrame.
 
@@ -466,7 +521,7 @@ def extract_probe_events_from_h5(h5_file_path):
         events = dataset['event']
         timestamps = dataset['timestamp']
         payload = dataset['payload']
-    
+
 
     # Convert data to DataFrame
     data = []
@@ -475,24 +530,27 @@ def extract_probe_events_from_h5(h5_file_path):
 
         event=events[i].decode('utf-8')
 
-        if event=='frame_saved':
+        if event=='ensemble_saved':
             payload_data = json.loads(payload[i])
+            # Extract the "sequence_id"
+            seq_id = payload_data["sequence_id"]
+
+            if seq_id in sequence:
+
+                # Extract the filename from the output_path
+                file_name = os.path.basename(payload_data["ensemble_path"])
 
 
-            # Extract the filename from the output_path
-            file_name = os.path.basename(payload_data["output_path"])
-
-
-            data.append({
-                'Event': events[i].decode('utf-8'),
-                'raw_file_name': file_name,
-                'raw_output_path': payload_data["output_path"],
-                'acquisition_idx': payload_data["acquisition_idx"],
-                'time_stamp': timestamps[i]
-                
-            })
+                data.append({
+                    'Event': events[i].decode('utf-8'),
+                    'raw_file_name': file_name,
+                    'raw_output_path': payload_data["ensemble_path"],
+                    'time_stamp': timestamps[i]
+                    
+                })
 
     behavior_df = pd.DataFrame(data)
+
     # Filter behavior_df for rows where the 'Event' column is 'frame_saved'
 
     return behavior_df
@@ -513,8 +571,8 @@ def calculate_stimulus_events_caltech_daq(behavior_df):
     DataFrame: A DataFrame containing the trial type, onset times, and durations of each stimulus event.
     """
     
-    on_times = behavior_df[behavior_df['Event'] == 'pwm_enabled']['Timestamp'].reset_index(drop=True)
-    off_times = behavior_df[behavior_df['Event'] == 'pwm_disabled']['Timestamp'].reset_index(drop=True)
+    on_times = behavior_df[behavior_df['Event'] == 'stimulus_onset']['Timestamp'].reset_index(drop=True)
+    off_times = behavior_df[behavior_df['Event'] == 'stimulus_offset']['Timestamp'].reset_index(drop=True)
 
     # Calculating the duration for which the stimulus was on
     if len(on_times) == len(off_times):
@@ -528,7 +586,7 @@ def calculate_stimulus_events_caltech_daq(behavior_df):
         # return None
 
     # Extract conditions and onset times
-    stimulus_df = behavior_df[behavior_df['Event'] == 'pwm_enabled']
+    stimulus_df = behavior_df[behavior_df['Event'] == 'stimulus_onset']
     conditions = stimulus_df['Event'].tolist()
     onsets = stimulus_df['Timestamp'].tolist()
 
