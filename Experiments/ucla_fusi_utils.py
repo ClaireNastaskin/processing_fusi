@@ -559,7 +559,7 @@ def extract_probe_events_from_h5(h5_file_path,sequence):
 
 
 
-def calculate_stimulus_events_caltech_daq(behavior_df):
+def calculate_stimulus_events_daq(behavior_df):
     """
     Analyzes a DataFrame containing behavioral event data to compute the durations of stimulus events.
     It extracts the times when the stimulus was turned on and off, calculates the duration for each stimulus event, and returns a DataFrame with the stimulus conditions, onset times, and durations.
@@ -571,8 +571,8 @@ def calculate_stimulus_events_caltech_daq(behavior_df):
     DataFrame: A DataFrame containing the trial type, onset times, and durations of each stimulus event.
     """
     
-    on_times = behavior_df[behavior_df['Event'] == 'stimulus_onset']['Timestamp'].reset_index(drop=True)
-    off_times = behavior_df[behavior_df['Event'] == 'stimulus_offset']['Timestamp'].reset_index(drop=True)
+    on_times = behavior_df[(behavior_df['Event'] == 'stimulus_onset') | (behavior_df['Event'] == 'start_playing')]['Timestamp'].reset_index(drop=True)
+    off_times = behavior_df[(behavior_df['Event'] == 'stimulus_offset') | (behavior_df['Event'] == 'stop_playing')]['Timestamp'].reset_index(drop=True)
 
     # Calculating the duration for which the stimulus was on
     if len(on_times) == len(off_times):
@@ -586,7 +586,7 @@ def calculate_stimulus_events_caltech_daq(behavior_df):
         # return None
 
     # Extract conditions and onset times
-    stimulus_df = behavior_df[behavior_df['Event'] == 'stimulus_onset']
+    stimulus_df = behavior_df[(behavior_df['Event'] == 'stimulus_onset') | (behavior_df['Event'] == 'start_playing')]
     conditions = stimulus_df['Event'].tolist()
     onsets = stimulus_df['Timestamp'].tolist()
 
