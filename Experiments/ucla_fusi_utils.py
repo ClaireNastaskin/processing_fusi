@@ -348,7 +348,7 @@ def register_3d_image_stack(image_stack):
     registered_images = [fixed_image]
     
     # Array to store transformation parameters (tx, ty, tz, and angles if applicable)
-    transform_params = np.zeros((3, num_frames))  # 3 for translations in x, y, z
+    transform_params = np.zeros((6, num_frames))  # 3 for translations in x, y, z
 
     # Setup registration method with appropriate metric and optimizer
     registration_method = sitk.ImageRegistrationMethod()
@@ -373,11 +373,17 @@ def register_3d_image_stack(image_stack):
         # Execute registration
         final_transform = registration_method.Execute(fixed_image, moving_image)
         tx, ty, tz = final_transform.GetTranslation()
-        
+        RotX = final_transform.GetAngleX()
+        RotY = final_transform.GetAngleY()
+        RotZ = final_transform.GetAngleZ()
+
         # Store transformation parameters for analysis
         transform_params[0, i] = tx
         transform_params[1, i] = ty
         transform_params[2, i] = tz
+        transform_params[3, i] = RotX 
+        transform_params[4, i] = RotY 
+        transform_params[5, i] = RotZ
 
         # Resample the moving image to align it with the fixed image
         resampled_image = sitk.Resample(moving_image, fixed_image, final_transform, sitk.sitkLinear, 0.0, moving_image.GetPixelID())
