@@ -35,6 +35,7 @@ class DirectoryManager:
         self.power_doppler_path = self.sequence_data_path / 'power_doppler'
         self.meta_data_path = self.power_doppler_path  # This seems to be a mistake in the original code, corrected here
         self.fUSI_data_path = self.sequence_data_path / 'fUSI'
+        self.glm_processing_data_path = self.sequence_data_path / 'glm'
         print(self.fUSI_data_path)
         # Ensure fUSI_data_path exists
         if not self.fUSI_data_path.exists():
@@ -57,8 +58,8 @@ class DirectoryManager:
         print(f'    beamformed_path: {self.beamformed_path}')
         print(f'    power_doppler_path: {self.power_doppler_path}')
         print(f'    meta_data_path: {self.meta_data_path}')
-        print(f'    USI_data_path: {self.fUSI_data_path}')
-
+        print(f'    fUSI_data_path: {self.fUSI_data_path}')
+        print(f'    glm_processing_data_path: {self.glm_processing_data_path}')
 
 import imageio
 import os
