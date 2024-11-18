@@ -26,8 +26,7 @@ def get_pwd_basename(pwd_path):
 
 def do_one_glm(pwd_path):
     pwd_path = Path(pwd_path)
-    sub_ses_dir = (pwd_path.relative_to(root /
-                   'sourcedata')).parent.parent
+    sub_ses_dir = (pwd_path.relative_to(root / 'sourcedata')).parent.parent
     this_reg_path = reg_path / sub_ses_dir / 'fus'
     this_glm_path = glm_path / sub_ses_dir / 'fus'
     basename = get_pwd_basename(pwd_path)
@@ -36,9 +35,9 @@ def do_one_glm(pwd_path):
 
     pwd_img = nib.load(this_reg_path / f'{basename}_pwdt.nii.gz')
     with open(root / 'sourcedata' / sub_ses_dir / 'fus' /
-                f'{basename}_pwdt.json', 'r') as fid:
+              f'{basename}_pwdt.json', 'r') as fid:
         time_stamps = np.array(json.load(fid)['VolumeTiming'])
-    
+
     # get and apply nan mask
     pwd_img_orig = nib.load(root / 'sourcedata' / sub_ses_dir /
                             'fus' / f'{basename}_pwdt.nii.gz')
@@ -55,9 +54,10 @@ def do_one_glm(pwd_path):
         anise.process.fusi_glm_fit2.fit_glm_time_shift(
             pwd_img, time_stamps, event, events,
             out_dir=this_glm_path / basename,
-            transformations= transformations, shift=20
+            transformations=transformations, shift=20
         )
     return shifts, max_zmaps, best_offset
+
 
 output = Parallel(n_jobs=20)(
     delayed(do_one_glm)(pwd_path)

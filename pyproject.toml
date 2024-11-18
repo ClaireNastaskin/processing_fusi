@@ -19,6 +19,9 @@ dependencies = [
     "matplotlib",
     "nilearn",
     "antspyx",
+    "dipy",
+    "mne",
+    "numpy-quaternion",
     "SimpleITK",
     "imageio", 
     "imageio-ffmpeg"

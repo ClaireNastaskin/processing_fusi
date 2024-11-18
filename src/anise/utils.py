@@ -72,7 +72,7 @@ def get_sidecar(bmode_h5, pwd_h5, time_stamps, n_tc,
                 institution_name='Caltech',
                 institution_address='1200 E California Blvd, Pasadena, CA 91125',
                 institutional_department_name='Neuroscience - Biology and Biological Engineering'):
-    
+
     metadata_bmode = h5todict(bmode_h5, path='/metadata')
     metadata_pwd = h5todict(pwd_h5)
 
@@ -100,8 +100,8 @@ def get_sidecar(bmode_h5, pwd_h5, time_stamps, n_tc,
                              if 'num_tissue_components' in clutter_filter_raw else
                              n_tc),
             'HighThreshold': (clutter_filter_raw['num_blood_and_tissue_components'][0]
-                             if 'num_blood_and_tissue_components' in clutter_filter_raw else
-                             n_bntc),
+                              if 'num_blood_and_tissue_components' in clutter_filter_raw else
+                              n_bntc),
         }
     ]
 
@@ -147,26 +147,26 @@ def get_sidecar(bmode_h5, pwd_h5, time_stamps, n_tc,
         tgc_init_gain = int(get_param('TGC', str(bmode_h5)))
         tgc_duration = int(get_param('Tdur', str(bmode_h5), reverse=True))
         tgc_slope = tx_az_aperture = tx_el_aperture = 'n/a'
-        
+
     # get the start time of the acquisition
     if 'scan_timing' in metadata_pwd['metadata']:
         acquire_start_datetime = metadata_pwd['metadata']['scan_timing']['acquire_start_datetime']
         ensemble_start_datetime = metadata_pwd['metadata']['scan_timing']['ensemble_start_datetime']
     else:
         # get the start time of the acquisition from filename
-        timestamp  = re.search(r'\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{6}', str(pwd_h5))
-        global_start_time = pd.to_datetime(timestamp.group(0).replace('-', ':'), 
+        timestamp = re.search(r'\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{6}', str(pwd_h5))
+        global_start_time = pd.to_datetime(timestamp.group(0).replace('-', ':'),
                                            format='%Y:%m:%dT%H:%M:%S:%f')
         acquire_start_datetime = ensemble_start_datetime = global_start_time
 
     sidecar = dict(
         # Scanner and probe hardware
         Manufacturer='Butterfly',
-        ProbeCentralFrequency = probe_central_frequency, #in MHz
-        ProbeNumberOfElements = [len(metadata_bmode['transducer']['lateral_index']), 
-                                 len(metadata_bmode['transducer']['elevation_index'])],
-        ProbePitch = 0.208, # in mm
-        ProbeRadiusOfCurvature = 0, # not curved
+        ProbeCentralFrequency=probe_central_frequency,  # in MHz
+        ProbeNumberOfElements=[len(metadata_bmode['transducer']['lateral_index']),
+                               len(metadata_bmode['transducer']['elevation_index'])],
+        ProbePitch=0.208,  # in mm
+        ProbeRadiusOfCurvature=0,  # not curved
         ProbeElevationAperture=(metadata_bmode['transducer']['elevation'][-1] - 
                                 metadata_bmode['transducer']['elevation'][0]),  # in mm
         ProbeElevationFocus= 'n/a', # in mm; not available
@@ -280,6 +280,7 @@ def match_param(param: str, path_dir: Path) -> str:
         return matches[0]
     return
 
+
 def get_BIDS_derivative_dir(base_path):
     # Get the output directory for registration and GLM
 
@@ -291,7 +292,7 @@ def get_BIDS_derivative_dir(base_path):
         else:
             register_dir = register_dir / 'derivatives' / 'registration'
             glm_dir = glm_dir / 'derivatives' / 'glm'
-        
+
     if not register_dir.exists():
         register_dir.mkdir(parents=True, exist_ok=True)
     if not glm_dir.exists():
@@ -299,18 +300,20 @@ def get_BIDS_derivative_dir(base_path):
 
     return register_dir, glm_dir
 
-def get_run_files_from_BIDS(base_path, run:str=None):
+
+def get_run_files_from_BIDS(base_path, run: str = None):
     fus_dir = base_path / 'fus'
     filenames = []
     if run is None:
         filenames = [f.name for f in fus_dir.iterdir() if f.is_file() and f.suffix == '.gz']
     else:
-        filenames = [f.name for f in fus_dir.iterdir() if f.is_file() 
+        filenames = [f.name for f in fus_dir.iterdir() if f.is_file()
                      and f.suffix == '.gz' and run in f.name]
     print(f'Found {len(filenames)} files:')
-    for f in filenames: 
+    for f in filenames:
         print('\t', f)
     return filenames
+
 
 def load_data_from_BIDS(base_path, filename):
 
@@ -321,7 +324,7 @@ def load_data_from_BIDS(base_path, filename):
     run_id = 'run-' + get_param('run', filename)
     acq_id = 'acq-' + get_param('acq', filename)
     exp_id = dict(sub=sub_id, ses=ses_id, run=run_id, acq=acq_id, sub_type=sub_type)
-    print('='*47 + run_id + '='*47)
+    print('=' * 47 + run_id + '=' * 47)
 
     # Load the NIFTI file
     fus_dir = base_path / 'fus'
@@ -339,45 +342,46 @@ def load_data_from_BIDS(base_path, filename):
     event_fname = filename.replace('pwdt.nii.gz', 'events.tsv')
     events = pd.read_csv(beh_dir / event_fname, sep='\t')
     print('Loaded events: \t  ', event_fname, '\n')
-    
+
     return nifti_data, metadata, events, exp_id
 
-### Save functions
+
+# Save functions
 def save_nifti_to_BIDS(output_path, data, filename=None, filename_tag='register'):
     """
     Saves the power doppler data to a NIFTI file.
-    
+
     Args:
     data (np.array): The power doppler data to save.
     output_path (str): The path to save the NIFTI file. If None, the file will be saved in the output folder.
     filename: The name of the saved NIFTI file ()
-    
+
     Returns:
     filename: The name of the saved NIFTI file ()
 
     """
     if output_path is not None and not output_path.exists():
         output_path.mkdir(parents=True, exist_ok=True)
-    
+
     if data is None:
         print('\nNo data to save. \nExiting...')
         return None
-    
+
     # affine to rescale and flip the images
-    affine=np.array([[0.2, 0.,  0.,  0.],
-                    [0.,  0.2, 0.,  0.],
-                    [0.,  0., -0.2, 0.],
-                    [0.,  0.,  0.,  0.]])
+    affine = np.array([[0.2, 0., 0., 0.],
+                       [0., 0.2, 0., 0.],
+                       [0., 0., -0.2, 0.],
+                       [0., 0., 0., 0.]])
 
     # Get the header
     hdr = nib.Nifti2Header()
     hdr['descrip'] = '"lateral", "elevation", "depth", "time"'
 
     # define the nifti image
-    nifti_img = nib.Nifti2Image(data, 
+    nifti_img = nib.Nifti2Image(data,
                                 affine=affine,
                                 header=hdr)
-    
+
     # save the nifti file
     if filename_tag:
         filename = filename + '_' + filename_tag
@@ -385,16 +389,17 @@ def save_nifti_to_BIDS(output_path, data, filename=None, filename_tag='register'
     print(f'Saved NIFTI file as:    {output_path}/{filename}.nii.gz')
     return filename
 
+
 def load_fusi_info(directory, **kwargs):
     """
     Scans the specified directory for h5 files, extracts timestamps
-    from the filenames, and organizes this information into a DataFrame. 
+    from the filenames, and organizes this information into a DataFrame.
     The DataFrame is sorted by timestamps and includes columns for
     relative experiment times and readable timestamps.
-    
+
     Args:
     directory (str): The directory where the h5 files are stored.
-    
+
     Returns:
     DataFrame: A DataFrame containing the filenames, original timestamps,
                experiment relative times, and readable timestamps.
@@ -524,12 +529,12 @@ def get_power_doppler_nii(power_doppler_path, num_tissue_components):
 def get_fusi_frames(power_doppler_path, power_doppler_df, frame_indices=-1):
     """
     Fetches the data from specific frames in the h5 files based on the list of frame indices.
-    
+
     Args:
     power_doppler_path (str): The directory where the h5 files are stored.
     power_doppler_df (DataFrame): DataFrame containing the filenames and timestamps.
     frame_indices (list of int): The indices of the frames to fetch.
-    
+
     Returns:
     np.array: The data from the specified frames in the h5 files,
               stacked along the last dimension.
@@ -540,7 +545,7 @@ def get_fusi_frames(power_doppler_path, power_doppler_df, frame_indices=-1):
     elif any(frame_index < 0 or frame_index >= len(power_doppler_df)
              for frame_index in frame_indices):
         raise ValueError("One or more invalid frame indices")
-    
+
     # Initialize a list to hold the data arrays
     data_list = []
 
@@ -552,7 +557,7 @@ def get_fusi_frames(power_doppler_path, power_doppler_df, frame_indices=-1):
         with h5py.File(file_path, 'r') as file:
             data = file['power_doppler'][:]
             data_list.append(data)
-    
+
     # Stack the data arrays along the last dimension,
     # reorient third dimension correctly
     stacked_data = np.flip(np.stack(data_list, axis=-1), axis=2)
@@ -565,7 +570,7 @@ def register_image_stack(image_stack):
                    for i in range(image_stack.shape[-1])]
     fixed_image = sitk_images[0]
     registered_images = [fixed_image]
-    
+
     # Array to store transformation parameters: [tx, ty, angle, 1]
     transform_params = np.zeros((3, image_stack.shape[-1]))  # Initialize with zeros
     transform_params[0, :] = 0  # If the last row is unused, set it to 1 or some default value
@@ -577,7 +582,7 @@ def register_image_stack(image_stack):
         learningRate=0.1, minStep=1e-4, numberOfIterations=100)
     registration_method.SetOptimizerScalesFromPhysicalShift()
     registration_method.SetInterpolator(sitk.sitkLinear)
-    
+
     initial_transform = sitk.Euler2DTransform()
     initial_transform.SetIdentity()
     registration_method.SetInitialTransform(initial_transform)
@@ -596,7 +601,7 @@ def register_image_stack(image_stack):
         final_transform = registration_method.Execute(fixed_image, moving_image)
         tx, ty = final_transform.GetTranslation()
         angle = final_transform.GetAngle()
-        
+
         # Store the transformation parameters
         transform_params[0, i] = tx
         transform_params[1, i] = ty
@@ -607,8 +612,8 @@ def register_image_stack(image_stack):
             sitk.sitkLinear, 0.0, moving_image.GetPixelID()
         )
         registered_images.append(resampled_image)
-    
+
     registered_array = np.stack([sitk.GetArrayFromImage(img)
                                  for img in registered_images], axis=-1)
-    
+
     return registered_array, transform_params

@@ -1,13 +1,10 @@
-from pathlib import Path
 from tqdm import tqdm
 import numpy as np
 from shutil import copyfile
-
-import anise.utils
-import anise.io.behavior_loader
+from joblib import Parallel, delayed
 
 import nibabel as nib
-from nilearn import plotting, image
+from nilearn import plotting
 from nilearn.glm.first_level import FirstLevelModel, make_first_level_design_matrix
 from nilearn.glm.first_level.hemodynamic_models import _gamma_difference_hrf
 from nilearn.image import mean_img
@@ -62,8 +59,7 @@ fig.show()
 """
 
 
-def fit_glm(power_doppler_img, time_stamps,
-            event, events, hrf='rat',
+def fit_glm(pwd, time_stamps, event, events, hrf='rat',
             transformations=None, smoothing_fwhm=None):
     """Compute a GLM on power doppler data.
 
@@ -93,16 +89,26 @@ def fit_glm(power_doppler_img, time_stamps,
         smoothing_fwhm=smoothing_fwhm,
         standardize=True
     )
+    if hrf == 'rat':
+        hrf = rat_hrf
     kwargs = dict()
     if transformations is not None:
-        kwargs['add_regs'] = transformations.T,
-        kwargs['add_reg_names'] = ["tx", "ty", "rot"]
+        assert transformations.shape
+        kwargs['add_regs'] = transformations
+        pwd_shape = np.array(pwd.shape)
+        if pwd_shape[pwd_shape > 1].size == 3:
+            assert transformations.shape[1] == 3
+            kwargs['add_reg_names'] = ["tx", "ty", "rot"]
+        else:
+            assert pwd_shape[pwd_shape > 1].size == 4
+            assert transformations.shape[1] == 6
+            kwargs['add_reg_names'] = ["rx", "ry", "rz", "tx", "ty", "tz"]
     design_matrix = make_first_level_design_matrix(
         time_stamps,
         events,
         drift_model="polynomial",
         drift_order=1,
-        hrf_model=(rat_hrf if hrf == 'rat' else hrf),
+        hrf_model=hrf,
         **kwargs
     )
 
@@ -112,8 +118,8 @@ def fit_glm(power_doppler_img, time_stamps,
         for i, column in enumerate(design_matrix.columns)
     }
 
-    fmri_glm = fmri_glm.fit(power_doppler_img, design_matrices=design_matrix)
-    
+    fmri_glm = fmri_glm.fit(pwd, design_matrices=design_matrix)
+
     # if a different hrf is used annoyingly that changes the
     # name of the design matrix column, use indexing but check
     # that it is correct
@@ -128,10 +134,37 @@ def fit_glm(power_doppler_img, time_stamps,
     return zmap
 
 
-def fit_glm_time_shift(power_doppler_img, time_stamps,
-                       event, events, out_dir=None, hrf='rat',
+def _fit_glm_time_shift(pwd, time_stamps, events, event, hrf, transformations,
+                        smoothing_fwhm, out_dir, event_time_offset):
+    events_shifted = events.copy()
+    events_shifted['onset'] += event_time_offset
+    zmap = fit_glm(pwd, time_stamps, event, events_shifted,
+                   hrf=hrf, transformations=transformations,
+                   smoothing_fwhm=smoothing_fwhm)
+    if out_dir is not None:
+        nib.save(zmap, (out_dir / 'time_shift' /
+                        f"eto-{event_time_offset}_zmap.nii.gz"))
+
+    if out_dir is not None:
+        mean_image = mean_img(pwd)
+        display = plotting.plot_stat_map(
+            zmap,
+            bg_img=mean_image,
+            cut_coords=[0],
+            threshold=3,
+            display_mode="y",
+            black_bg=True,
+            title=f"{event}t\n(shifted {event_time_offset.round(2)})",
+        )
+        display.savefig(out_dir / 'time_shift' /
+                        f"eto-{event_time_offset}_zmap.png")
+        display.close()
+    return zmap
+
+
+def fit_glm_time_shift(pwd, time_stamps, event, events, out_dir=None, hrf='rat',
                        transformations=None, smoothing_fwhm=None,
-                       shift=12, shift_res=0.25, n_best_vox=20):
+                       shift=12, shift_res=0.25, n_best_vox=20, n_jobs=None):
     """Compute a GLM on power doppler data checking for the best time shift.
 
     Parameters
@@ -159,6 +192,8 @@ def fit_glm_time_shift(power_doppler_img, time_stamps,
     n_best_vox : int
         The number of best voxels to use for considering
         in order to determine the best time shift.
+    n_jobs : int
+        The number of parallel jobs.
 
     Returns
     -------
@@ -172,37 +207,12 @@ def fit_glm_time_shift(power_doppler_img, time_stamps,
     if out_dir is not None:
         (out_dir / 'time_shift').mkdir(parents=True, exist_ok=True)
 
-    max_zmaps = list()
-    zmaps = list()
     event_time_offsets = np.arange(-shift, shift + shift_res, shift_res).round(2)
-    for event_time_offset in tqdm(event_time_offsets):
-        events_shifted = events.copy()
-        events_shifted['onset'] += event_time_offset
-        zmap = fit_glm(power_doppler_img, time_stamps,
-                       event, events_shifted, hrf=hrf,
-                       transformations=transformations,
-                       smoothing_fwhm=smoothing_fwhm)
-        if out_dir is not None:
-            nib.save(zmap, (out_dir / 'time_shift' /
-                            f"eto-{event_time_offset}_zmap.nii.gz"))
-        zmaps.append(zmap)
-        max_zmap = np.max(zmap.get_fdata())
-        max_zmaps.append(max_zmap)
-
-        if out_dir is not None:
-            mean_image = mean_img(power_doppler_img)
-            display = plotting.plot_stat_map(
-                zmap,
-                bg_img=mean_image,
-                cut_coords=[0],
-                threshold=3,
-                display_mode="y",
-                black_bg=True,
-                title=f"pwm_enabled contrast\n(shifted {event_time_offset.round(2)})",
-            )
-            display.savefig(out_dir / 'time_shift' /
-                            f"eto-{event_time_offset}_zmap.png")
-            display.close()
+    zmaps = Parallel(n_jobs=n_jobs)((delayed(_fit_glm_time_shift)(
+        pwd, time_stamps, events, event, hrf, transformations,
+        smoothing_fwhm, out_dir, event_time_offset))
+        for event_time_offset in tqdm(event_time_offsets))
+    max_zmaps = [np.max(zmap.get_fdata()) for zmap in zmaps]
 
     if out_dir is not None:
         fig, ax = plt.subplots()
@@ -211,7 +221,6 @@ def fit_glm_time_shift(power_doppler_img, time_stamps,
         ax.set_ylabel('Max T-Statistic')
         fig.savefig(out_dir / "zmaptrend.png")
         plt.close(fig)
-
 
     # find best voxels
     zmap_data = np.array([np.array(zmap.dataobj).ravel() for zmap in zmaps])
@@ -224,17 +233,17 @@ def fit_glm_time_shift(power_doppler_img, time_stamps,
     best_zmap = zmaps[best_idx]
 
     if out_dir is not None:
-         # plot intensity values over time shifts
-         fig, ax = plt.subplots()
-         ax.plot(event_time_offsets, zmap_data[:, zmap_best_idxs])
-         ax.set_xlabel('Time Shift (s)')
-         ax.set_ylabel('T-Statistic')
-         fig.savefig(out_dir / 'best_voxel_time_shifts.png')
+        # plot intensity values over time shifts
+        fig, ax = plt.subplots()
+        ax.plot(event_time_offsets, zmap_data[:, zmap_best_idxs])
+        ax.set_xlabel('Time Shift (s)')
+        ax.set_ylabel('T-Statistic')
+        fig.savefig(out_dir / 'best_voxel_time_shifts.png')
 
-         copyfile(
-             out_dir / 'time_shift' / f"eto-{best_offset}_zmap.png",
-             out_dir / "best_zmap.png"
-         )
-         nib.save(best_zmap, out_dir / "best_zmap.nii.gz")
+        copyfile(
+            out_dir / 'time_shift' / f"eto-{best_offset}_zmap.png",
+            out_dir / "best_zmap.png"
+        )
+        nib.save(best_zmap, out_dir / "best_zmap.nii.gz")
 
     return event_time_offsets, max_zmaps, best_offset
