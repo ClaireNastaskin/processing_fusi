@@ -1,7 +1,4 @@
 from nilearn import plotting
-
-
-
 import matplotlib.pyplot as plt
 import numpy as np
 import nibabel as nib
@@ -12,11 +9,10 @@ import h5py
 from pathlib import Path
 from datetime import datetime, timedelta
 import json
-
+import itk
 import nilearn as nl
 from nilearn.glm.first_level import make_first_level_design_matrix
 from nilearn.plotting import plot_design_matrix
-
 from anise.io.load_matlab_dataset import load_data, load_selected_data
 import SimpleITK as sitk
 
@@ -334,10 +330,81 @@ def register_image_stack(image_stack):
     registered_array = np.stack([sitk.GetArrayFromImage(img) for img in registered_images], axis=2)
     
     return registered_array, transform_params
-    
 
-import SimpleITK as sitk
-import numpy as np
+
+
+
+def simpleITK_bline_registration(fusi2register):
+    
+   
+    """
+    Perform non-rigid registration of all volumes in a 4D fUSI dataset to a reference volume using SimpleITK.
+
+    Parameters:
+    fusi_data (numpy.ndarray): 4D array with shape (x, y, z, t).
+    frame2register2 (int): Index of the reference volume along the time axis.
+
+    Returns:
+    numpy.ndarray: Registered 4D array with the same shape as `fusi_data`.
+    list: List of transformation parameters for each timepoint.
+    """
+
+
+    x, y, z, t = fusi2register.shape
+    reference_volume = fusi2register[..., 1]  # Reference volume
+
+    # Convert reference volume to a SimpleITK image
+    reference_image = sitk.GetImageFromArray(reference_volume.astype(np.float32))
+
+    # Prepare for output
+    registered_data = np.zeros_like(fusi2register)
+    transformation_parameters = []
+
+    # B-spline registration parameters
+    registration_method = sitk.ImageRegistrationMethod()
+    registration_method.SetMetricAsMeanSquares()
+    registration_method.SetOptimizerAsLBFGSB()
+    registration_method.SetInterpolator(sitk.sitkLinear)
+
+    # B-spline grid setup
+    grid_physical_spacing = [50.0, 50.0, 50.0]  # Physical spacing (can adjust based on data)
+    mesh_size = [int(sz / spc) for sz, spc in zip(reference_image.GetSize(), grid_physical_spacing)]
+    initial_transform = sitk.BSplineTransformInitializer(reference_image, mesh_size, order=3)
+    registration_method.SetInitialTransform(initial_transform, inPlace=False)
+
+    # Set multi-resolution strategy
+    registration_method.SetShrinkFactorsPerLevel([4, 2, 1])
+    registration_method.SetSmoothingSigmasPerLevel([2, 1, 0])
+
+    # Register each volume
+    for i in range(t):
+        moving_volume = fusi2register[..., i]
+        moving_image = sitk.GetImageFromArray(moving_volume.astype(np.float32))
+
+        # Perform registration
+        final_transform = registration_method.Execute(reference_image, moving_image)
+
+        # Resample the moving image to the reference frame
+        resampler = sitk.ResampleImageFilter()
+        resampler.SetReferenceImage(reference_image)
+        resampler.SetTransform(final_transform)
+        resampler.SetInterpolator(sitk.sitkLinear)
+        registered_image = resampler.Execute(moving_image)
+
+        # Store the registered volume
+        registered_data[..., i] = sitk.GetArrayFromImage(registered_image)
+
+        # Save transformation parameters
+        transform_parameters = final_transform.GetParameters()
+        transformation_parameters.append(transform_parameters)
+
+        print(f"Volume {i + 1}/{t} registered.")
+
+    return registered_data, transformation_parameters
+
+
+
+
 
 def register_3d_image_stack(image_stack):
     # Assuming `image_stack` has dimensions (x, y, z, time)
