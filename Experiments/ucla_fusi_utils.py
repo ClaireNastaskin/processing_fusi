@@ -9,13 +9,12 @@ import h5py
 from pathlib import Path
 from datetime import datetime, timedelta
 import json
-import itk
 import nilearn as nl
 from nilearn.glm.first_level import make_first_level_design_matrix
 from nilearn.plotting import plot_design_matrix
 from anise.io.load_matlab_dataset import load_data, load_selected_data
 import SimpleITK as sitk
-
+from scipy.ndimage import affine_transform
 
 
 class DirectoryManager:
@@ -331,6 +330,12 @@ def register_image_stack(image_stack):
     
     return registered_array, transform_params
 
+def apply_transformation(fusi_data, transformations):
+    # Apply transformations to each frame
+    for t in range(fusi_data.shape[3]):
+        fusi_transformed[:, :, :, t] = affine_transform(fusi_data[:, :, :, t], transformations[:, t])
+
+    return fusi_transformed    
 
 
 
