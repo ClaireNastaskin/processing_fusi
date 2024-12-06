@@ -1,4 +1,3 @@
-
 import numpy as np
 import nibabel as nib
 import os
@@ -40,8 +39,11 @@ def behavior_loader(h5_file_path):
     print(data)
     behavior_df = pd.DataFrame(data)
     
-    event_on = [event['Event'] for event in data if 'enab' in event['Event']][0]
-    event_off = [event['Event'] for event in data if 'disab' in event['Event']][0]
+    event_on_delimiters = ['enab', 'start']
+    event_off_delimiters = ['disab', 'stop']
+
+    event_on = [event['Event'] for event in data if any(delimiter in event['Event'] for delimiter in event_on_delimiters)][0]
+    event_off = [event['Event'] for event in data if any(delimiter in event['Event'] for delimiter in event_off_delimiters)][0]
     print(f'Using event on {event_on} and event off {event_off}')
 
     return calculate_stimulus_events_caltech_daq(behavior_df, event_on, event_off)
