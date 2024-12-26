@@ -2,7 +2,6 @@ import argparse
 from pathlib import Path
 import sys
 import re
-from dvclive import Live
 # Add the Anise directory to the Python module search path
 anise_dir = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.append(str(anise_dir))
@@ -14,7 +13,13 @@ from nilearn.glm.first_level import FirstLevelModel, make_first_level_design_mat
 from nilearn.image import mean_img
 from Experiments import ucla_fusi_utils as utils
 
+from nilearn.plotting import plot_design_matrix
+from nilearn.image import concat_imgs, mean_img, resample_img
+from nilearn.maskers import NiftiSpheresMasker
+from nilearn.reporting import get_clusters_table
+from sklearn.metrics import r2_score
 
+# OUTDATED (params stored in metadata.json rather than relying on sequence name)
 def unpack_parameters(sequence: str):
     parts = sequence.split('_')
     # Initialize a dictionary to store the parameter values
@@ -36,7 +41,7 @@ def unpack_parameters(sequence: str):
             parameters[name] = value
     return parameters
 
-
+# OUTDATED
 def load_and_preprocess_data(dm: utils.DirectoryManager, event_time_offset: float, num_tissue_components: int, apply_image_registration: bool) -> tuple:
     """
     Load and preprocess fUSI data.
@@ -68,7 +73,8 @@ def load_and_preprocess_data(dm: utils.DirectoryManager, event_time_offset: floa
     return fusi_data, fusi_info, events, transformations
 
 
-def create_design_matrix(fusi_info: dict, events: dict, transformations: np.ndarray, apply_image_registration: bool) -> np.ndarray:
+def create_design_matrix(time_stamp, events: dict, transformations: np.ndarray, 
+apply_transform_in_design_mtx: bool, hrf_model="glover") -> np.ndarray:
     """
     Create the design matrix for GLM analysis.
 
@@ -76,50 +82,49 @@ def create_design_matrix(fusi_info: dict, events: dict, transformations: np.ndar
         fusi_info (dict): Dictionary containing fUSI information.
         events (dict): Dictionary containing event information.
         transformations (np.ndarray): Array containing image transformations.
-        apply_image_registration (bool): Whether image registration was applied.
+        apply_transform_in_design_mtx (bool): Whether image registration was applied.
 
     Returns:
         np.ndarray: The design matrix.
     """
-    hrf_model = "glover"
-    if apply_image_registration:
+
+    if apply_transform_in_design_mtx:
+        design_matrix_name = 'yes_transform_design_mtx'
         design_matrix = make_first_level_design_matrix(
-            fusi_info['Experiment Time'],
+            time_stamp,
             events,
             drift_model="polynomial",
             drift_order=1,
-            add_regs=transformations.transpose(),
+            add_regs=transformations,
             add_reg_names=["tx", "ty", "rot"],
             hrf_model=hrf_model,
         )
     else:
+        design_matrix_name = 'no_transform_design_mtx'
         design_matrix = make_first_level_design_matrix(
-            fusi_info['Experiment Time'],
+            time_stamp,
             events,
             drift_model="polynomial",
             drift_order=1,
             hrf_model=hrf_model,
         )
-    return design_matrix
+    return design_matrix, design_matrix_name
 
 
-def perform_glm_analysis(fusi_data: np.ndarray, design_matrix: np.ndarray, dm: utils.DirectoryManager, smoothing_fwhm: float) -> tuple:
+def perform_glm_analysis(nifti_data, design_matrix: np.ndarray, output_path: Path, smoothing_fwhm: float) -> tuple:
     """
     Perform GLM analysis on fUSI data.
 
     Args:
-        fusi_data (np.ndarray): Preprocessed fUSI data.
+        nifti_data (nifti): Processed nifti data.
         design_matrix (np.ndarray): Design matrix for GLM analysis.
-        dm (DirectoryManager): Directory manager for the fUSI data.
+        output_path(Oath): Directory manager for the fUSI data.
         smoothing_fwhm (float): Spatial smoothing FWHM in mm.
 
     Returns:
         tuple: A tuple containing the GLM results and the maximum t-stat value.
     """
-    affine = np.diag([0.15, 0.15, 0.15, 0])
-    nifti_img = nib.Nifti1Image(fusi_data, affine)
-    nifti_img.to_filename(dm.fUSI_data_path / "fUSi_data.nii.gz")
-    nifti_data = image.load_img(dm.fUSI_data_path / "fUSi_data.nii.gz")
+    
 
     contrast_matrix = np.eye(design_matrix.shape[1])
     basic_contrasts = {
@@ -127,32 +132,32 @@ def perform_glm_analysis(fusi_data: np.ndarray, design_matrix: np.ndarray, dm: u
         for i, column in enumerate(design_matrix.columns)
     }
 
-    fmri_glm = FirstLevelModel(minimize_memory=False, mask_img=False, smoothing_fwhm=smoothing_fwhm, standardize=True)
+    fmri_glm = FirstLevelModel(minimize_memory=False, 
+                                mask_img=False, 
+                                smoothing_fwhm=smoothing_fwhm, 
+                                standardize=True,
+                                )
     fmri_glm = fmri_glm.fit(nifti_data, design_matrices=design_matrix)
 
+    # TO-DO: Add more contrasts? Why is pwm_enabled specifically chosen?
     z_map = fmri_glm.compute_contrast(basic_contrasts['pwm_enabled'], output_type="stat")
     max_tstat = np.max(z_map.get_fdata())
 
-    print(f"DVCLive directory: {dm.dvclive_dir}")
     # Save the z_map as a NIfTI file
-    z_map_filename = dm.fUSI_data_path / "z_map.nii.gz"
+    z_map_filename = output_path / "z_map.nii.gz"
     z_map.to_filename(z_map_filename)
-    # Log the maximum t-stat value using DVCLive
-    with Live(dm.dvclive_dir) as live:
-        live.log_metric("max_tstat", max_tstat)
-        live.log_artifact(str(z_map_filename))  # Track the z_map file with DVC
     return fmri_glm, z_map, max_tstat
 
 
-def plot_results(fmri_glm, z_map: np.ndarray, dm: utils.DirectoryManager, sequence: str):
+def plot_results(fmri_glm, z_map: np.ndarray, output_file: Path, title: str ="pwm_enabled"):
     """
     Plot the GLM analysis results.
 
     Args:
         fmri_glm: The fitted GLM model.
         z_map (np.ndarray): The computed z-map.
-        dm (DirectoryManager): Directory manager for the fUSI data.
-        sequence (str): The sequence name.
+        output_file (Path): The output file path.
+        title (str, optional): The title of the plot.
     """
     mean_image = mean_img(fmri_glm.masker_.mask_img_)
     plotting.plot_stat_map(
@@ -161,11 +166,113 @@ def plot_results(fmri_glm, z_map: np.ndarray, dm: utils.DirectoryManager, sequen
         threshold=3,
         display_mode="y",
         black_bg=True,
-        title="pwm_enabled contrast",
+        title=title,
+        output_file=output_file,
     )
-    plt.savefig(dm.fUSI_data_path / f"tstat_map_{sequence}.png")
-    plt.close()
 
+
+def get_ROI_activation(nifti_data, fmri_glm, design_matrix, basic_contrasts, time_stamp, events, param_glm, output_file=None):
+    # Find ROIs by identifying the locations that show a significant response to the stimulus
+    figs = []
+    contrast_ids = []
+    r_squared_all = dict()
+    mean_image = mean_img(nifti_data)
+
+    # Loop over all conditions in basic_contrasts
+    for contrast_id, contrast_val in basic_contrasts.items():
+        if contrast_id not in ['drift_1', 'constant','tx','ty','rot']:
+            print(f"[GLM] Processing contrast: {contrast_id}")
+            z_map = fmri_glm.compute_contrast(contrast_val, output_type="stat")
+            table = get_clusters_table(z_map, 
+                                       stat_threshold=param_glm["stat_threshold"], 
+                                       cluster_threshold=20)
+            table.set_index("Cluster ID", drop=True)
+
+            if not table.empty and len(table) >= param_glm["num_ROI_locations"]:
+                # get the num_locations largest clusters' max x, y, and z coordinates
+                coords = table.loc[range(0, param_glm["num_ROI_locations"]), ["X", "Y", "Z"]].values
+                # coords = np.vstack([coords, [10.45000061, 0., 18.40000045]])
+
+                # Now use the ROIs to extract the time series 
+                masker = NiftiSpheresMasker(
+                    coords,
+                    radius=0.1,  # specifies the size of the spherical region around each given coordinate from which the signal will be extracted
+                    detrend=True,
+                    standardize=param_glm["standardize"],  # zscore psc
+                    t_r= param_glm["t_r"],
+                    memory_level=1,
+                    verbose=0,
+                )
+                real_timeseries = masker.fit_transform(nifti_data)
+                predicted_timeseries = np.tile(design_matrix[contrast_id].values, (real_timeseries.shape[1], 1)).T
+
+                # Calculate the R-squared value for each ROI
+                r_squared_values = []
+                for i in range(real_timeseries.shape[1]):
+                    r_squared = r2_score(real_timeseries[:, i], predicted_timeseries[:, i])
+                    r_squared_values.append(r_squared)
+                
+                # Plotting the time series for each ROI and the corresponding location of each ROI
+                colors = ["blue", "purple", "magenta", "olive", "teal"]
+                N = real_timeseries.shape[-1]
+                fig, axs = plt.subplots(2, N)
+                # Set the title of the figure with a bigger font size
+                fig.suptitle(f"Stimulus: {contrast_id}", fontsize=20)
+                # get plot limits, common across all axis
+                mx = real_timeseries.max() + 0.05 * real_timeseries.max()
+                mn = real_timeseries.min() + 0.05 * real_timeseries.min()
+
+                for i in range(N):
+                    # plotting time series
+                    axs[0, i].set_title(f"Cluster peak {coords[i].round(1)}, R2: {r_squared_values[i]:.2f}\n")
+                    if masker.standardize != "psc":
+                        axs[0, i].plot(time_stamp, predicted_timeseries[:, i], c="k", ls="--", lw=1)
+
+                    axs[0, i].plot(time_stamp, real_timeseries[:, i], c=colors[i], lw=2)
+
+                    axs[0, i].set_xlabel("Time (S)")
+
+                    if masker.standardize == "psc":
+                        axs[0, i].set_ylabel('Percent Signal Change', labelpad=0)
+                    else:
+                        axs[0, i].set_ylabel("Signal intensity", labelpad=0)
+
+                    # plotting image below the time series
+                    for index, row in events.iterrows():
+                        if row['trial_type'] == contrast_id and row['onset'] > time_stamp[0]:
+                            axs[0, i].axvspan(row['onset'] + param_glm["behavior_offset"],
+                            row['onset'] + row['duration'] + param_glm["behavior_offset"],
+                            color='gray', alpha=0.5)
+
+                    roi_img = plotting.plot_stat_map(
+                        z_map,
+                        cut_coords=coords[i],
+                        threshold=4,
+                        figure=fig,
+                        axes=axs[1, i],
+                        display_mode="y",
+                        colorbar=False,
+                        bg_img=mean_image,
+                    )
+
+                    axs[0, i].set_ylim(mn, mx)
+                    roi_img.add_markers([coords[i]], colors[i], 200)
+                fig.set_size_inches(24, 14)
+                figs.append(fig)
+                contrast_ids.append(contrast_id)
+                r_squared_all[contrast_id] = r_squared_values
+
+                plt.show(block=False)
+                if output_file is not None:
+                    filename = f"{output_file}_stimulus_{len(contrast_ids)}.png"
+                    fig.savefig(filename)
+                    print(f"[GLM] Saved figure to {filename}")
+                    plt.clf()
+                    plt.close(fig)
+                    axs = None
+            else:
+                print(f"[GLM] No valid clusters found for {contrast_id} that meet the criteria.")      
+    return r_squared_all, figs
 
 def main(base_path: Path, sequence: str, event_time_offset: float, apply_image_registration: bool, smoothing_fwhm: float, num_tissue_components: int, plot_figures: bool = False):
     """
@@ -182,14 +289,9 @@ def main(base_path: Path, sequence: str, event_time_offset: float, apply_image_r
     """
     dm = utils.DirectoryManager(base_path, sequence)
     parameters = unpack_parameters(sequence)
-    dm.dvclive_dir = dm.sequence_data_path / "metrics"
-    dm.dvclive_dir.mkdir(parents=True, exist_ok=True)
-    with Live(dm.dvclive_dir) as live:
-        # Log the unpacked parameter values to DVC Live using the dictionary
-        for name, value in parameters.items():
-            live.log_param(name, value)
     fusi_data, fusi_info, events, transformations = load_and_preprocess_data(dm, event_time_offset, num_tissue_components, apply_image_registration)
-    design_matrix = create_design_matrix(fusi_info, events, transformations, apply_image_registration)
+    time_stamp = fusi_info['VolumeTiming']
+    design_matrix = create_design_matrix(time_stamp, events, transformations, apply_image_registration)
     fmri_glm, z_map, max_tstat = perform_glm_analysis(fusi_data, design_matrix, dm, smoothing_fwhm)
     print(f"Maximum t-stat value: {max_tstat}")
     if plot_figures:

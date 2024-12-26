@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "anise"
-version = "0.1.0"
+version = "0.1.1"
 authors = [{ name = "Tyson Aflalo", email = "tyson@forestneurotech.org" }]
 description = "functional neuroimaging analysis of fUSI data."
 readme = "README.md"
@@ -19,6 +19,9 @@ dependencies = [
     "matplotlib",
     "nilearn",
     "antspyx",
+    "dipy",
+    "mne",
+    "numpy-quaternion",
     "SimpleITK",
     "imageio", 
     "imageio-ffmpeg"

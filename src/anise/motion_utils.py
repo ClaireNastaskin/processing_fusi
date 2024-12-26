@@ -8,15 +8,10 @@ from numpy.fft import fft2, ifft2, fftshift
 from scipy.ndimage import shift
 from scipy import ndimage
 
-import nibabel as nib
-import nilearn as nl
-from nilearn.glm.first_level import make_first_level_design_matrix
-from nilearn.plotting import plot_design_matrix
-from nilearn import plotting
-
 # from anise.io.load_matlab_dataset import load_data, load_selected_data
 import SimpleITK as sitk
 import ants
+from tqdm import tqdm
 
 def show_imgs(imgs, frame_indices=np.arange(10), timestamps=None, labels=None, fig_height=2, title=[], clim=None):
     # plot subplot frames
@@ -43,7 +38,8 @@ def show_imgs(imgs, frame_indices=np.arange(10), timestamps=None, labels=None, f
         else:
             ax.remove()
     plt.tight_layout(pad=0.3, w_pad=0.1)
-    plt.show()
+    plt.show(block=False)
+    return fig, axs
 
 def plot_pd_intensity_over_time(imgs, y_lim=[], outlier_threshold=0):
     fig, ax = plt.subplots()
@@ -64,27 +60,40 @@ def plot_pd_intensity_over_time(imgs, y_lim=[], outlier_threshold=0):
         median_intensity = np.median(doppler_intensity)
         outlier_intensity_frames = np.abs(doppler_intensity - median_intensity) > outlier_threshold
         outlier_frames = np.where(outlier_intensity_frames)[0]
-        print(f'Outlier frames more than {outlier_threshold:.1f} from median: ', outlier_frames)
+        print(f'[In-plane] Outlier frames more than {outlier_threshold:.1f} from median: ', outlier_frames)
         
         # plot the median intensity and the outliers
         plt.hlines(median_intensity, 0, len(doppler_intensity),color='k', label='Median Intensity')
-        plt.hlines(median_intensity - outlier_threshold, 0, len(doppler_intensity), color='k', linestyle='--')
-        plt.hlines(median_intensity + outlier_threshold, 0, len(doppler_intensity), color='k', linestyle='--', label='threshold')
+        plt.hlines(median_intensity - outlier_threshold, 0, len(doppler_intensity), 
+        color='k', linestyle='--')
+        plt.hlines(median_intensity + outlier_threshold, 0, len(doppler_intensity), 
+        color='k', linestyle='--', label='threshold')
         plt.scatter(outlier_frames, 
                     doppler_intensity[outlier_intensity_frames], 
                     color='r', label='Outlier indices')
         plt.legend()
     else:
         outlier_intensity_frames = []
-    plt.show()
-    return doppler_intensity, outlier_intensity_frames, fig
+    return doppler_intensity, outlier_intensity_frames, fig, ax
 
+def boxcar_smooth(data, window_size):
+    # smooth across frames with a boxcar moving average
+    assert window_size>0, "Window size must be greater than 0"
+    smoothed_data = np.copy(data)
+    for t in range(data.shape[-1]):
+        start_index = max(0, t - window_size // 2)
+        end_index = min(data.shape[-1], t + window_size // 2 + 1)
+        smoothed_data[..., t] = np.mean(data[..., start_index:end_index], axis=-1)
+    return smoothed_data
+
+# phase correlation related
 def phase_corr_translation(im1, im2):
     
     """ performs FFT phase correlation to find optimal translation between two images
 
     Kuglin, C. D. and Hines, D. C., 1975. The Phase Correlation Image Alignment Method. 
-    Proceeding of IEEE International Conference on Cybernetics and Society, pp. 163-165, New York, NY, USA.
+    Proceeding of IEEE International Conference on Cybernetics and Society, pp. 163-165, New York, 
+    NY, USA.
 
     Args:
         im1, im2 : 2D numpy arrays : image 2 to be aligned to image 1
@@ -148,6 +157,7 @@ def pairwise_cross_correlation_variance(imgs):
             ir_avg[i,j] = ir.var()
     return ir_avg
 
+# registration related
 def get_threshold_image(imgs, threshold=.5):
 
     # Apply thresholding to isolate vessels
@@ -240,7 +250,8 @@ def register_sitk(images, metric='correlation', ref_index=0):
                       'after_similarity': similarity_metric_after,
                       })
 
-        resampled_image = sitk.Resample(moving_image, fixed_image, final_transform, sitk.sitkLinear, 0.0, moving_image.GetPixelID())
+        resampled_image = sitk.Resample(moving_image, fixed_image, final_transform, sitk.sitkLinear, 
+                                        0.0, moving_image.GetPixelID())
         resampled_image = sitk.GetArrayFromImage(resampled_image)
         transformed_images.append(resampled_image)
 
@@ -250,12 +261,15 @@ def register_sitk(images, metric='correlation', ref_index=0):
     return registered_array, extra_df
 
 def register_ants(images, type_of_transform='Rigid', ref_index=0, crop_border=0):
-    if isinstance(images, np.ndarray):
-        fixed_image = ants.from_numpy(images[..., ref_index])
-        transformed_images = []
+
+    # use image nearest to centroid as the reference frame
+    print(f'[Registration] Reference frame for registration is: {ref_index}')
+    fixed_image = ants.from_numpy(images[..., ref_index])
+    transformed_images = []
+
     # Initialize transformations array with zero for the first image (identity transformation)
     extra = []
-    for i in range(images.shape[-1]):
+    for i in (range(images.shape[-1])):
         moving_image = ants.from_numpy(images[..., i])
         result = ants.registration(fixed=fixed_image, 
                                    moving=moving_image, 
@@ -298,28 +312,34 @@ def register_ants(images, type_of_transform='Rigid', ref_index=0, crop_border=0)
                       })
 
     registered_images = np.stack(transformed_images, axis=-1)
-    print('Registered images shape:', registered_images.shape)
+    print('[Registration] Registered images shape:', registered_images.shape)
     extra_df = pd.DataFrame(extra)
 
     return registered_images, extra_df
 
-def crop_images(images, crop_border=0):
+def crop_images(images, crop_border):
+    if isinstance(crop_border, int):
+        x_l = x_r = y_l = y_r = crop_border
+    elif isinstance(crop_border, list):
+        x_l, x_r, y_l, y_r = crop_border
     transformed_images = []
     for i in range(images.shape[-1]):
         image = images[..., i]
         lateral, depth = image.shape[0], image.shape[1]
-        cropped_image = image[crop_border:lateral - crop_border, crop_border:depth - crop_border]
+        cropped_image = image[x_l:lateral - x_r, y_l:depth - y_r]
         transformed_images.append(cropped_image)
     return np.stack(transformed_images, axis=-1)
 
-def plot_transform_params(extra, oop_labels=[], metric_name='', in_plane_indices=[], annotate_ref_frame: int = None):
+def plot_transform_params(extra, oop_labels=[], metric_name='', annotate_ref_frame: int = None):
     # Create a new figure with three subplots
     # similarity metric value
     # translation after registration
     # rotation after registration
 
-    if not in_plane_indices:
+    if "in_plane_indices" not in extra:
         in_plane_indices = range(len(extra))
+    else:
+        in_plane_indices = extra['in_plane_indices']
     fig, axs = plt.subplots(3, 1,figsize=(8,8))
 
     # get the range of oop start stops for plotting
@@ -331,22 +351,23 @@ def plot_transform_params(extra, oop_labels=[], metric_name='', in_plane_indices
     def add_shaded_oop_indices(ax, oop_labels):
     # add shaded region for out-of-plane frames
         if len(range_oop) > 0:
-            ax.axvspan(range_oop[0], range_oop[1], color='k', alpha=0.2, label=f'Discarded frames')
+            ax.axvspan(range_oop[0], range_oop[1], color='k', alpha=0.2, label=f'discard frames')
             for i in range(2, len(range_oop)-1, 2):
                 ax.axvspan(range_oop[i], range_oop[i+1], color='k', alpha=0.2)
 
-    def add_annotation_ref_frame(ax, annotate_ref_frame, y):
+    def add_annotation_ref_frame(ax, in_plane_indices, annotate_ref_frame, y):
         if annotate_ref_frame is not None:
-            ax.scatter(annotate_ref_frame, y[annotate_ref_frame], color='magenta', label=f'reference frames: {annotate_ref_frame}')
+            ax.scatter(in_plane_indices[annotate_ref_frame], y[annotate_ref_frame], color='magenta', 
+                        label=f'reference frame')
 
     ax = axs[0]
-    ax.plot(in_plane_indices, extra['initial_similarity'], label='initial_similarity')
-    ax.plot(in_plane_indices, extra['after_similarity'], label='after_similarity')
+    ax.plot(in_plane_indices, extra['initial_similarity'], label='initial similarity')
+    ax.plot(in_plane_indices, extra['after_similarity'], label='after similarity')
     before = extra['initial_similarity'].mean()
     after = extra['after_similarity'].mean()
     improvement = (after - before) / before * 100
     add_shaded_oop_indices(ax, range_oop)
-    add_annotation_ref_frame(ax, annotate_ref_frame, extra['after_similarity'])
+    add_annotation_ref_frame(ax, in_plane_indices, annotate_ref_frame, extra['after_similarity'])
     ax.set_title(f'Similarity Metric: {metric_name}, {improvement:.2f}% improvement')
     ax.set_ylabel('Similarity Metric')
     ax.legend()
@@ -356,7 +377,7 @@ def plot_transform_params(extra, oop_labels=[], metric_name='', in_plane_indices
     ax.plot(in_plane_indices, extra['translation_x'], label='x')
     ax.plot(in_plane_indices, extra['translation_y'], label='y')
     add_shaded_oop_indices(ax, range_oop)
-    add_annotation_ref_frame(ax, annotate_ref_frame, extra['translation_x'])
+    add_annotation_ref_frame(ax, in_plane_indices, annotate_ref_frame, extra['translation_x'])
     ax.set_title('Translation')
     ax.set_ylabel('pixel')
     lim = max(np.abs(extra['translation_x']).max(), np.abs(extra['translation_y']).max(), 5)
@@ -367,7 +388,7 @@ def plot_transform_params(extra, oop_labels=[], metric_name='', in_plane_indices
     ax = axs[2]
     ax.plot(in_plane_indices, extra['rotation'], label='rotation')
     add_shaded_oop_indices(ax, range_oop)
-    add_annotation_ref_frame(ax, annotate_ref_frame, extra['rotation'])
+    add_annotation_ref_frame(ax, in_plane_indices, annotate_ref_frame, extra['rotation'])
     ax.set_title('Rotation')
     ax.set_xlabel('Frame Index')
     ax.set_ylabel('Angle')
@@ -376,9 +397,63 @@ def plot_transform_params(extra, oop_labels=[], metric_name='', in_plane_indices
     ax.legend()
     ax.grid(True)
     plt.tight_layout()
+    return fig, axs, improvement
 
+def check_weird_transform(extra, max_translation_limit=10, angle_limit=0.1):
+    # check if the transformation is not smooth based on the difference between consecutive frames
+    outlier_x = extra['translation_x'].diff().abs().max()
+    outlier_y = extra['translation_y'].diff().abs().max()
+    outlier_a = extra['rotation'].diff().abs().max() 
+    if outlier_x > max_translation_limit: # pixel
+        print(f'Weird transformation detected with {outlier_x:.1f} pixel difference along the x axis.')
+        return True
+    if outlier_y > max_translation_limit: # pixel
+        print(f'Weird transformation detected with {outlier_y:.1f} pixel difference along the y axis.')
+        return True
+    if outlier_a > angle_limit: # angle (radian)
+        print(f'Weird transformation detected with {outlier_a:.1f} radian in rotation.')
+        return True
+    return False
 
-# cluster stuff
+def auto_ants_registration_on_in_plane(data, in_plane_indices, ref_frame_list=[], optimize_ref=True):
+    # register in-plane images ONLY
+    data_selected = data[:, :, in_plane_indices]
+    # initialize the ref_frame to the point closest to the centroid of the in-plane cluster
+    if any(ref_frame_list):
+        ref_frame = ref_frame_list[0]
+    else:
+        # use the first in-plane image as the reference frame
+        ref_frame = final_ref_frame = 0
+
+    # register the images
+    registered_images, extra = register_ants(data_selected, ref_index=ref_frame)
+    extra['in_plane_indices'] = in_plane_indices
+    # check if the transformation is weird (e.g. rotation > 10 degrees)
+    weird_transform_flag = check_weird_transform(extra)
+    i = 1
+    if optimize_ref:
+        while weird_transform_flag and i < 10:
+            ref_frame = ref_frame_list[i]
+            print(f'[Registration] Re-registering images...')
+            registered_images, extra = register_ants(data_selected, ref_index=ref_frame)
+            weird_transform_flag = check_weird_transform(extra)
+            if i < len(ref_frame_list):
+                i += 1
+            else:
+                break
+        if not weird_transform_flag:
+            extra['in_plane_indices'] = in_plane_indices
+            final_ref_frame = ref_frame
+            print('[Registration] Done. Transformation was successfully performed.')
+        else: 
+            registered_images = data_selected
+            extra = None
+            final_ref_frame = None
+            print('[Registration] No suitable transformation was performed. Revert to no registration.')
+    
+    return registered_images, extra, final_ref_frame
+
+# cluster related
 def get_consecutive_labels_counts(labels):
     labels_tmp = np.append(labels, 0.01)
     summary_count = {}
@@ -398,6 +473,9 @@ def get_consecutive_labels_counts(labels):
     return summary_count
 
 def remap_cluster_to_labels(original_labels):
+    if np.any(original_labels==-1):
+        return original_labels
+    
     # Re-order the labels and assign plane classes
     unique_labels, label_counts = np.unique(original_labels, return_counts=True)
     first_label_appear = np.zeros(len(unique_labels), )
@@ -432,11 +510,29 @@ def remap_cluster_to_labels(original_labels):
     labels['remap_kmean'] = labels['class'].map(mapping_dict)
     pred_labels = labels['remap_kmean'].values
 
-    return pred_labels, labels
+    return pred_labels
 
-def plot_embedding(embedding, labels, title='', legend='on', centroids=[]):
-    unique_labels = np.unique(labels)
+def plot_embedding(embedding, labels=None, title='', legend='on', 
+                   centroids=[], highlight_points=[], output_file=None):
+    if labels is None:
+        # labels not given, assign all to in-plane
+        labels = np.zeros((embedding.shape[0], ), dtype=np.int32)
+        embedding_new = embedding
+        legend = 'off'
+    else:
+        order = np.argsort(labels)
+        labels = labels[order]
+        embedding_new = embedding[order]
+
+    colors = ['g', 'c', 'm', 'y', 'k', 'b']
     label_classes = {}
+    unique_labels = np.unique(labels)
+
+    if len(unique_labels) == 1:
+        colors = ['g'] # all in-plane
+    elif -1 in unique_labels:
+        colors = ['r'] + colors # discard plane label with red
+
     for l in unique_labels:
         if l == 0:
             label_classes[l] = 'in-plane'
@@ -444,16 +540,107 @@ def plot_embedding(embedding, labels, title='', legend='on', centroids=[]):
             label_classes[l] = 'discard out-of-plane ' + str(l)
         elif l > 0:
             label_classes[l] = 'new out-of-plane ' + str(l)
-    plt.figure(figsize=(4,3))
-    scatter = plt.scatter(embedding[:, 0],embedding[:, 1],c=labels,s=5)
+    fig, ax = plt.subplots(figsize=(4,3))
+    ax.set_prop_cycle('color', colors)
+    for l in unique_labels:
+        ax.scatter(embedding_new[labels == l, 0],embedding_new[labels == l, 1],s=5,label=label_classes[l])
     plt.gca().set_aspect('equal', 'datalim')
     if len(centroids) > 0:
         plt.scatter(centroids[:, 0], centroids[:, 1], c='k', s=100, marker='x')
     if legend == 'on':
-        plt.legend(handles=scatter.legend_elements(num=[k for k in label_classes.keys()])[0], 
-                labels=label_classes.values(),
-                loc='lower left', bbox_to_anchor=(1.02,0), ncol=1)
+        fig.legend(loc='center left', bbox_to_anchor=(.9, 0.5), ncol=1)
     plt.title(title)
     plt.xticks([])
     plt.yticks([])
 
+    if len(highlight_points) > 0:
+        for i in highlight_points:
+            plt.scatter(embedding[i, 0], embedding[i, 1], s=10, c='m')
+
+    if output_file is not None:
+        fig.savefig(output_file, dpi=300, bbox_inches='tight')       
+
+    return fig, ax
+
+def dim_red(fusi_data, param):
+    dim_red_method = param["dim_red_method"] # 'VGG' or 'PCA' or 'UMAP' or 'tSNE'
+    pca_n_components = param["pca_n_components"]
+    
+    print(f'[In-plane] Begins {dim_red_method} for dimensionality reduction...')
+
+    if dim_red_method == 'VGG':
+        # Apply VGG to extract features, then PCA on the features
+        from VGG_feature_extraction import VGG_PCA
+        embedding = VGG_PCA(fusi_data, pca_n_components=2)
+    else:
+        # use the thresholded images 
+        threshold_imgs, density = get_threshold_image(fusi_data, threshold=0.5)
+        print('\tApplied binary masking to get thresholded images')
+        show_imgs(threshold_imgs, np.arange(20), fig_height=1.1, title='off')
+        imgs_flatten = threshold_imgs.reshape(-1, threshold_imgs.shape[-1]).T
+        # imgs_flatten = fusi_data.reshape(-1, fusi_data.shape[-1]).T
+
+        from sklearn.decomposition import PCA
+        pca=PCA(n_components=pca_n_components)
+
+        # Reduce number of dimension
+        lowd = pca.fit_transform(imgs_flatten)
+        print(f'\tAfter PCA shape: {lowd.shape}')
+        explained_variance = pca.explained_variance_ratio_
+        print(f'\tExplain variance sum of top {pca_n_components} components: {sum(explained_variance)*100:.2f}%')
+
+        if dim_red_method == 'PCA':
+            ### Visualize with PCA
+            embedding = lowd[:,:2]
+            
+        elif dim_red_method == 'UMAP':
+            import umap
+            ### Visualize PCA projection with UMAP
+            reducer = umap.UMAP(random_state=42, metric='cosine')
+            embedding = reducer.fit_transform(lowd)
+
+        elif dim_red_method == 'tSNE':
+            from sklearn.manifold import TSNE
+            ### Visualize PCA projection with tSNE
+            tsne = TSNE(n_components=2, verbose=0, 
+                        perplexity=param["perplexity"], max_iter=300, random_state=42)
+            embedding = tsne.fit_transform(lowd)
+
+    # Visualize top 2 embedding space
+    plot_embedding(embedding, title=(dim_red_method + ' projection'))
+
+    return embedding
+
+def dbscan_clustering(embedding, starting_eps=1):
+    from sklearn.cluster import DBSCAN
+    print('[In-plane] Begins DBSCAN clustering...')
+    # normalize the embedding
+    embedding = embedding / np.std(embedding, axis=0)
+    n_clusters = 5
+    n_noise = embedding.shape[0]
+    eps = starting_eps - 0.1
+    while n_clusters > 4 or n_noise > embedding.shape[0] / 2:
+        eps += 0.1
+        print(f'\tUsing epsilon = {eps}')
+        db = DBSCAN(eps=eps).fit(embedding)
+        labels = db.labels_
+
+        # Number of clusters in labels, ignoring noise if present.
+        n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+        n_noise = list(labels).count(-1)
+
+        print("\tEstimated number of clusters: %d" % n_clusters)
+        print("\tEstimated number of noise points: %d" % n_noise)
+    return labels, n_clusters, n_noise, eps
+
+def sort_in_plane_points_closest_to_centroid(embedding, pred_labels, n_clusters):
+    # Find nearest point to the centroid of the clusters
+    centroids = np.zeros((n_clusters, embedding.shape[-1]))
+    for cluster in range(n_clusters):
+        cluster_indices = np.where(pred_labels == cluster)[0]
+        centroids[cluster] = np.mean(embedding[cluster_indices], axis=0)
+        distance = np.linalg.norm(centroids[cluster].reshape(1,-1) - embedding, axis=1)
+        closest_point_sorted = np.argsort(distance[cluster_indices])
+        if cluster == 0: # in-plane
+            closest_points_in_plane = closest_point_sorted
+    return centroids, closest_points_in_plane
