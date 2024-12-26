@@ -1,7 +1,4 @@
 from nilearn import plotting
-
-
-
 import matplotlib.pyplot as plt
 import numpy as np
 import nibabel as nib
@@ -12,29 +9,28 @@ import h5py
 from pathlib import Path
 from datetime import datetime, timedelta
 import json
-
 import nilearn as nl
 from nilearn.glm.first_level import make_first_level_design_matrix
 from nilearn.plotting import plot_design_matrix
-
 from anise.io.load_matlab_dataset import load_data, load_selected_data
 import SimpleITK as sitk
-
+from scipy.ndimage import affine_transform
 
 
 class DirectoryManager:
     def __init__(self, base_path, sequence):
         self.base_path = base_path
         self.sequence = sequence
-        self.log_file_path = self.base_path / 'logs' / 'task_1.log'
-        self.task_event_file_path = self.base_path / 'streams' / 'task_1-event_stream.h5'
-        self.probe_event_file_path = self.base_path / 'streams' / 'probe_1-event_stream.h5'
+        self.log_file_path = self.base_path / 'logs' / 'task.log'
+        self.task_event_file_path = self.base_path / 'streams' / 'task-event_stream.h5'
+        self.probe_event_file_path = self.base_path / 'streams' / 'probe-event_stream.h5'
         self.sequence_data_path = self.base_path / 'acquisitions' / self.sequence
         self.raw_data_path = self.sequence_data_path / 'raw_frame_data'
         self.beamformed_path = self.sequence_data_path / 'beamformed'
         self.power_doppler_path = self.sequence_data_path / 'power_doppler'
         self.meta_data_path = self.power_doppler_path  # This seems to be a mistake in the original code, corrected here
         self.fUSI_data_path = self.sequence_data_path / 'fUSI'
+        self.glm_processing_data_path = self.sequence_data_path / 'glm'
         print(self.fUSI_data_path)
         # Ensure fUSI_data_path exists
         if not self.fUSI_data_path.exists():
@@ -57,8 +53,8 @@ class DirectoryManager:
         print(f'    beamformed_path: {self.beamformed_path}')
         print(f'    power_doppler_path: {self.power_doppler_path}')
         print(f'    meta_data_path: {self.meta_data_path}')
-        print(f'    USI_data_path: {self.fUSI_data_path}')
-
+        print(f'    fUSI_data_path: {self.fUSI_data_path}')
+        print(f'    glm_processing_data_path: {self.glm_processing_data_path}')
 
 import imageio
 import os
@@ -334,6 +330,144 @@ def register_image_stack(image_stack):
     
     return registered_array, transform_params
 
+def apply_transformation(fusi_data, transformations):
+    # Apply transformations to each frame
+    for t in range(fusi_data.shape[3]):
+        fusi_transformed[:, :, :, t] = affine_transform(fusi_data[:, :, :, t], transformations[:, t])
+
+    return fusi_transformed    
+
+
+
+def simpleITK_bline_registration(fusi2register):
+    
+   
+    """
+    Perform non-rigid registration of all volumes in a 4D fUSI dataset to a reference volume using SimpleITK.
+
+    Parameters:
+    fusi_data (numpy.ndarray): 4D array with shape (x, y, z, t).
+    frame2register2 (int): Index of the reference volume along the time axis.
+
+    Returns:
+    numpy.ndarray: Registered 4D array with the same shape as `fusi_data`.
+    list: List of transformation parameters for each timepoint.
+    """
+
+
+    x, y, z, t = fusi2register.shape
+    reference_volume = fusi2register[..., 1]  # Reference volume
+
+    # Convert reference volume to a SimpleITK image
+    reference_image = sitk.GetImageFromArray(reference_volume.astype(np.float32))
+
+    # Prepare for output
+    registered_data = np.zeros_like(fusi2register)
+    transformation_parameters = []
+
+    # B-spline registration parameters
+    registration_method = sitk.ImageRegistrationMethod()
+    registration_method.SetMetricAsMeanSquares()
+    registration_method.SetOptimizerAsLBFGSB()
+    registration_method.SetInterpolator(sitk.sitkLinear)
+
+    # B-spline grid setup
+    grid_physical_spacing = [50.0, 50.0, 50.0]  # Physical spacing (can adjust based on data)
+    mesh_size = [int(sz / spc) for sz, spc in zip(reference_image.GetSize(), grid_physical_spacing)]
+    initial_transform = sitk.BSplineTransformInitializer(reference_image, mesh_size, order=3)
+    registration_method.SetInitialTransform(initial_transform, inPlace=False)
+
+    # Set multi-resolution strategy
+    registration_method.SetShrinkFactorsPerLevel([4, 2, 1])
+    registration_method.SetSmoothingSigmasPerLevel([2, 1, 0])
+
+    # Register each volume
+    for i in range(t):
+        moving_volume = fusi2register[..., i]
+        moving_image = sitk.GetImageFromArray(moving_volume.astype(np.float32))
+
+        # Perform registration
+        final_transform = registration_method.Execute(reference_image, moving_image)
+
+        # Resample the moving image to the reference frame
+        resampler = sitk.ResampleImageFilter()
+        resampler.SetReferenceImage(reference_image)
+        resampler.SetTransform(final_transform)
+        resampler.SetInterpolator(sitk.sitkLinear)
+        registered_image = resampler.Execute(moving_image)
+
+        # Store the registered volume
+        registered_data[..., i] = sitk.GetArrayFromImage(registered_image)
+
+        # Save transformation parameters
+        transform_parameters = final_transform.GetParameters()
+        transformation_parameters.append(transform_parameters)
+
+        print(f"Volume {i + 1}/{t} registered.")
+
+    return registered_data, transformation_parameters
+
+
+
+
+
+def register_3d_image_stack(image_stack):
+    # Assuming `image_stack` has dimensions (x, y, z, time)
+    num_frames = image_stack.shape[3]
+    
+    # Convert each 3D volume to a SimpleITK image
+    sitk_images = [sitk.GetImageFromArray(image_stack[:, :, :, t]) for t in range(num_frames)]
+    fixed_image = sitk_images[0]
+    registered_images = [fixed_image]
+    
+    # Array to store transformation parameters (tx, ty, tz, and angles if applicable)
+    transform_params = np.zeros((6, num_frames))  # 3 for translations in x, y, z
+
+    # Setup registration method with appropriate metric and optimizer
+    registration_method = sitk.ImageRegistrationMethod()
+    registration_method.SetMetricAsCorrelation()  # Metric suitable for small motions
+    registration_method.SetOptimizerAsRegularStepGradientDescent(learningRate=0.1, minStep=1e-4, numberOfIterations=100)
+    registration_method.SetOptimizerScalesFromPhysicalShift()
+    registration_method.SetInterpolator(sitk.sitkLinear)
+    
+    # Use a 3D Euler transform for 3D volumes
+    initial_transform = sitk.Euler3DTransform()
+    initial_transform.SetIdentity()
+    registration_method.SetInitialTransform(initial_transform)
+
+    # Apply registration for each 3D volume in the time sequence
+    for i, moving_image in enumerate(sitk_images[1:], start=1):
+        # Initialize a 3D transform with moments-based alignment
+        initial_transform = sitk.Euler3DTransform(
+            sitk.CenteredTransformInitializer(fixed_image, moving_image, sitk.Euler3DTransform(), sitk.CenteredTransformInitializerFilter.MOMENTS)
+        )
+        registration_method.SetInitialTransform(initial_transform)
+
+        # Execute registration
+        final_transform = registration_method.Execute(fixed_image, moving_image)
+        tx, ty, tz = final_transform.GetTranslation()
+        RotX = final_transform.GetAngleX()
+        RotY = final_transform.GetAngleY()
+        RotZ = final_transform.GetAngleZ()
+
+        # Store transformation parameters for analysis
+        transform_params[0, i] = tx
+        transform_params[1, i] = ty
+        transform_params[2, i] = tz
+        transform_params[3, i] = RotX 
+        transform_params[4, i] = RotY 
+        transform_params[5, i] = RotZ
+
+        # Resample the moving image to align it with the fixed image
+        resampled_image = sitk.Resample(moving_image, fixed_image, final_transform, sitk.sitkLinear, 0.0, moving_image.GetPixelID())
+        registered_images.append(resampled_image)
+    
+    # Convert the list of SimpleITK images back to a NumPy array
+    registered_array = np.stack([sitk.GetArrayFromImage(img) for img in registered_images], axis=-1)
+    
+    return registered_array, transform_params
+
+
 
 import ants
 
@@ -446,7 +580,7 @@ def calculate_stimulus_eventsV2(behavior_df):
 
 
 
-def extract_probe_events_from_h5(h5_file_path):
+def extract_probe_events_from_h5(h5_file_path,sequence):
     """
     Reads an HDF5 file, extracts timestamps and event descriptions from the dataset, and organizes this information into a DataFrame.
 
@@ -466,7 +600,7 @@ def extract_probe_events_from_h5(h5_file_path):
         events = dataset['event']
         timestamps = dataset['timestamp']
         payload = dataset['payload']
-    
+
 
     # Convert data to DataFrame
     data = []
@@ -475,24 +609,27 @@ def extract_probe_events_from_h5(h5_file_path):
 
         event=events[i].decode('utf-8')
 
-        if event=='frame_saved':
+        if event=='ensemble_saved':
             payload_data = json.loads(payload[i])
+            # Extract the "sequence_id"
+            seq_id = payload_data["sequence_id"]
+
+            if seq_id in sequence:
+
+                # Extract the filename from the output_path
+                file_name = os.path.basename(payload_data["ensemble_path"])
 
 
-            # Extract the filename from the output_path
-            file_name = os.path.basename(payload_data["output_path"])
-
-
-            data.append({
-                'Event': events[i].decode('utf-8'),
-                'raw_file_name': file_name,
-                'raw_output_path': payload_data["output_path"],
-                'acquisition_idx': payload_data["acquisition_idx"],
-                'time_stamp': timestamps[i]
-                
-            })
+                data.append({
+                    'Event': events[i].decode('utf-8'),
+                    'raw_file_name': file_name,
+                    'raw_output_path': payload_data["ensemble_path"],
+                    'time_stamp': timestamps[i]
+                    
+                })
 
     behavior_df = pd.DataFrame(data)
+
     # Filter behavior_df for rows where the 'Event' column is 'frame_saved'
 
     return behavior_df
@@ -501,7 +638,7 @@ def extract_probe_events_from_h5(h5_file_path):
 
 
 
-def calculate_stimulus_events_caltech_daq(behavior_df):
+def calculate_stimulus_events_daq(behavior_df):
     """
     Analyzes a DataFrame containing behavioral event data to compute the durations of stimulus events.
     It extracts the times when the stimulus was turned on and off, calculates the duration for each stimulus event, and returns a DataFrame with the stimulus conditions, onset times, and durations.
@@ -513,8 +650,8 @@ def calculate_stimulus_events_caltech_daq(behavior_df):
     DataFrame: A DataFrame containing the trial type, onset times, and durations of each stimulus event.
     """
     
-    on_times = behavior_df[behavior_df['Event'] == 'pwm_enabled']['Timestamp'].reset_index(drop=True)
-    off_times = behavior_df[behavior_df['Event'] == 'pwm_disabled']['Timestamp'].reset_index(drop=True)
+    on_times = behavior_df[(behavior_df['Event'] == 'stimulus_onset') | (behavior_df['Event'] == 'start_playing')]['Timestamp'].reset_index(drop=True)
+    off_times = behavior_df[(behavior_df['Event'] == 'stimulus_offset') | (behavior_df['Event'] == 'stop_playing')]['Timestamp'].reset_index(drop=True)
 
     # Calculating the duration for which the stimulus was on
     if len(on_times) == len(off_times):
@@ -528,7 +665,7 @@ def calculate_stimulus_events_caltech_daq(behavior_df):
         # return None
 
     # Extract conditions and onset times
-    stimulus_df = behavior_df[behavior_df['Event'] == 'pwm_enabled']
+    stimulus_df = behavior_df[(behavior_df['Event'] == 'stimulus_onset') | (behavior_df['Event'] == 'start_playing')]
     conditions = stimulus_df['Event'].tolist()
     onsets = stimulus_df['Timestamp'].tolist()
 
