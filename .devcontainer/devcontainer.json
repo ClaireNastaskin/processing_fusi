@@ -25,7 +25,8 @@
     },
     "forwardPorts": [],
     "mounts": [
-        "source=/mnt/fUS_data,target=/workspaces/Anise/fUS_data,type=bind,consistency=cached"
+        "source=/mnt/fUS_data,target=/workspaces/Anise/fUS_data,type=bind,consistency=cached",
+        "source=${localWorkspaceFolder},target=/workspaces/Anise,type=bind,consistency=cached"
     ],
     "postCreateCommand": [
         "/bin/sh",
