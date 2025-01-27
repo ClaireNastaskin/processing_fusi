@@ -17,7 +17,7 @@ from mangrove.beamform.preprocess import preprocess_iq_data_to_rf
 from mangrove.beamform.vbeam_ import das_beamformer
 from mangrove.io.convert.vbeam.mangrove_to_vbeam import \
     import_space_time_to_vbeam_setup, _time_beamform
-from mangrove.schema.wrapper.bmode_wrapper import BModeFile
+from dendrology.wrapper.bmode_wrapper import BModeFile
 
 # power doppler
 from mangrove.power_doppler.pca_metal import PCAMetalPowerDoppler
