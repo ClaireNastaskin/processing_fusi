@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools>=63", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -15,16 +15,141 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "dendrology>=0.3.3",
-    "numpy",
-    "matplotlib",
-    "nilearn",
-    "antspyx",
-    "dipy",
-    "mne",
-    "numpy-quaternion",
-    "SimpleITK",
-    "imageio", 
-    "imageio-ffmpeg"
+    "pybids>=0.18.1",
+    "numpy>=1.26.4",
+    "dipy>=1.10.0",
+    "nilearn>=0.11.1",
+    "matplotlib>=3.9.4",
+    "mne>=1.8.0",
+    "simpleitk>=2.4.1",
+    "imageio-ffmpeg>=0.6.0",
+    "antspyx>=0.5.4",
+    "imageio>=2.37.0",
+    "mangrove",
 ]
 requires-python = ">=3.9"
+
+[tool.uv]
+dev-dependencies = [
+  "codespell >= 2.0.0,<3.0.0",
+  "Cython >=0.29.21",
+  "hdf5storage >=0.1.16,<1.0.0",
+  "import-linter >=1.12.0,<3.0.0",
+  "pyright == 1.1.339",
+  "pytest >=6.0.0,<8.0.0",
+  "pytest-cov >=4.1.0,<5.0.0",
+  "rich >=13.0",
+  "ruff >=0.7.1,<1.0.0",
+  "setuptools >=61.0",
+]
+
+[tool.uv.sources]
+mangrove = { path = "../Mangrove" }
+
+[tool.ruff]
+target-version = "py39"
+line-length = 88
+# lint rules
+lint.select = [
+  "A",    # https://docs.astral.sh/ruff/rules/#flake8-builtins-a
+  "ARG",  # https://docs.astral.sh/ruff/rules/#flake8-unused-arguments-arg
+  "B",    # https://docs.astral.sh/ruff/rules/#flake8-bugbear-b 
+  "C4",   # https://docs.astral.sh/ruff/rules/#flake8-comprehensions-c4
+  "DTZ",  # https://docs.astral.sh/ruff/rules/#flake8-bugbear-b
+  "E",    # https://docs.astral.sh/ruff/rules/#error-e
+  "EM",   # https://docs.astral.sh/ruff/rules/#flake8-errmsg-em
+  "F",    # https://docs.astral.sh/ruff/rules/#pyflakes-f
+  "FBT",  # https://docs.astral.sh/ruff/rules/#flake8-boolean-trap-fbt
+  "I",    # https://docs.astral.sh/ruff/rules/#isort-i
+  "ICN",  # https://docs.astral.sh/ruff/rules/#flake8-import-conventions-icn
+  "ISC",  # https://docs.astral.sh/ruff/rules/#flake8-implicit-str-concat-isc
+  "N",    # https://docs.astral.sh/ruff/rules/#pep8-naming-n
+  "PLC",  # https://docs.astral.sh/ruff/rules/#pylint-pl
+  "PLE",  # https://docs.astral.sh/ruff/rules/#pylint-pl
+  "PLR",  # https://docs.astral.sh/ruff/rules/#pylint-pl
+  "PLW",  # https://docs.astral.sh/ruff/rules/#pylint-pl
+  "Q",    # https://docs.astral.sh/ruff/rules/#flake8-quotes-q
+  "RUF",  # https://docs.astral.sh/ruff/rules/#ruff-specific-rules-ruf
+  "S",    # https://docs.astral.sh/ruff/rules/#flake8-bandit-s
+  "T100", # https://docs.astral.sh/ruff/rules/debugger/
+  "TID",  # https://docs.astral.sh/ruff/rules/#flake8-tidy-imports-tid
+  "UP",   # https://docs.astral.sh/ruff/rules/#pyupgrade-up
+  "W",    # https://docs.astral.sh/ruff/rules/#warning-w
+  "YTT",  # https://docs.astral.sh/ruff/rules/#pyupgrade-up
+]
+lint.ignore = [
+  # Allow non-abstract empty methods in abstract base classes
+  "B027",
+  # Allow string literals in Exceptions
+  "EM101",
+  # Forward annotations for jaxtyping
+  "F722",
+  # Allow boolean positional values in function calls, like `dict.get(... True)`
+  "FBT003",
+  "S101", # Allow asserts
+  # Ignore checks for possible passwords
+  "S105",
+  "S106",
+  "S107",
+  # Ignore complexity
+  "C901",
+  "PLR0911",
+  "PLR0912",
+  "PLR0913",
+  "PLR0915",
+  # Rules that may cause conflicts with formatter
+  "ISC001",
+  # Allow typing.Optional
+  "UP007",
+]
+lint.unfixable = [
+  # Don't touch unused imports
+  "F401",
+]
+extend-include = ["*.ipynb"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["anise"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.per-file-ignores]
+# Tests can use magic values, assertions, relative imports and unused function arguments
+"tests/**/*" = ["PLR2004", "S101", "TID252", "ARG001"]
+
+[tool.coverage.run]
+source_pkgs = ["anise", "tests"]
+branch = true
+parallel = true
+
+[tool.coverage.paths]
+anise = ["src/anise"]
+tests = ["tests"]
+
+[tool.coverage.report]
+exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
+
+# Software architecture / interdependency checking
+[tool.importlinter]
+root_package = "anise"
+include_external_packages = true
+
+[tool.pyright]
+include = ["src", "notebooks"]
+pythonVersion = "3.9"
+reportGeneralTypeIssues = "none"
+reportMissingImports = "information"
+reportMissingModuleSource = "information"
+reportPrivateImportUsage = "none"  # tenacity==6.3.1 issue
+
+[tool.pytest.ini_options]
+markers = [
+  "integration: mark integration tests.",
+  "slow: slow tests (> 1 second).",
+  "experiment_data: requires path to experiment data.",
+  "benchmark: mark a test with custom benchmark settings.",
+]
+filterwarnings = [
+  "error",  # make warnings errors
+]
