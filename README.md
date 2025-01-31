@@ -3,45 +3,18 @@ functional analysis of fUSI data
 
 ## Installation
 
-### Non-Python prerequisites
-
-* Mangrove is currently only supported on macOS Apple Silicon.
-* Install [Homebrew](https://brew.sh/) to manage system packages.
-
-### Virtual environment
-
-Create and activate a separate environment for this installation using [conda or mamba](https://github.com/conda-forge/miniforge?tab=readme-ov-file#install). 
+1. Ensure you are on a macOS Apple Silicon or Ubuntu 22.04 x86_64 system.
+2. Clone the Anise repository:
 
 ```console
-mamba create -n Anise python=3.9
+git clone git@github.com:Forest-Neurotech/Anise.git
+cd Anise
 ```
 
-Activate it by running:
-
+4. Set up a Python environment using [`uv`](https://astral.sh/uv), like so:
 ```console
-mamba activate Anise
-```
-
-Note: when [installing conda](https://www.anaconda.com/download), download the version compatible with your CPU architecture (e.g., Intel vs Apple Silicon).
-
-### Package and dependencies
-
-After activating your Python environment, you can install `Anise` and its dependencies into your environment. From the Anise folder, run:
-
-```console
-pip install -e .
-```
-This install all the dependencies in the pyproject.toml. In addition, you'll also need to install you local mangrove installation:
-
-```console
-pip install /path/to/your/mangrove
-```
-e.g.
-```console
-pip install /Users/taflalo/code/Mangrove
-```
-
-Finally, install the Anise code as a module 
-```console
-python setup.py install
+# Set your Gemfury Forest-index token in the environment or in .env file
+export UV_INDEX_FOREST_USERNAME=<your-token>
+make install
+source .venv/bin/activate
 ```

@@ -1,0 +1,2 @@
+# from https://github.com/sdiebolt/fusi-pybids-demo/blob/main/fusi_bids.json
+include src/anise/data/fusi_bids.json
