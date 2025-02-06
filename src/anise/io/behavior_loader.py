@@ -59,7 +59,6 @@ def get_exp_start_time(run_folder: Path) -> Union[datetime, None]:
         timestamp = file.attrs["experiment_start_utc"]
     return datetime.fromisoformat(timestamp).astimezone(timezone.utc)
 
-
 def calculate_stimulus_events_caltech_daq(behavior_df, event_on, event_off):
     """
     Analyzes a DataFrame containing behavioral event data to
