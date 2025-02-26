@@ -151,8 +151,7 @@ reportPrivateImportUsage = "none"  # tenacity==6.3.1 issue
 markers = [
   "integration: mark integration tests.",
   "slow: slow tests (> 1 second).",
-  "experiment_data: requires path to experiment data.",
-  "benchmark: mark a test with custom benchmark settings.",
+  "network: mark a test that requires network access.",
 ]
 filterwarnings = [
   "error",  # make warnings errors
