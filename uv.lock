@@ -22,9 +22,12 @@ version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "antspyx" },
+    { name = "beartype" },
     { name = "dipy" },
     { name = "imageio" },
     { name = "imageio-ffmpeg" },
+    { name = "jaxtyping" },
+    { name = "loguru" },
     { name = "mangrove" },
     { name = "matplotlib", version = "3.9.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "matplotlib", version = "3.10.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
@@ -34,6 +37,7 @@ dependencies = [
     { name = "numpy" },
     { name = "pybids" },
     { name = "simpleitk" },
+    { name = "tyro" },
 ]
 
 [package.dev-dependencies]
@@ -53,9 +57,12 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "antspyx", specifier = ">=0.5.4" },
+    { name = "beartype", specifier = ">=0.14.0" },
     { name = "dipy", specifier = ">=1.10.0" },
     { name = "imageio", specifier = ">=2.37.0" },
     { name = "imageio-ffmpeg", specifier = ">=0.6.0" },
+    { name = "jaxtyping", specifier = ">=0.2.23" },
+    { name = "loguru", specifier = ">=0.7.0" },
     { name = "mangrove", directory = "../Mangrove" },
     { name = "matplotlib", specifier = ">=3.9.4" },
     { name = "mne", specifier = ">=1.8.0" },
@@ -63,6 +70,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.26.4" },
     { name = "pybids", specifier = ">=0.18.1" },
     { name = "simpleitk", specifier = ">=2.4.1" },
+    { name = "tyro", specifier = ">=0.5.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -777,6 +785,49 @@ wheels = [
 ]
 
 [[package]]
+name = "dendrology"
+version = "0.4.4"
+source = { editable = "../dendrology" }
+dependencies = [
+    { name = "einops" },
+    { name = "hdf5storage" },
+    { name = "jaxtyping" },
+    { name = "nibabel" },
+    { name = "numpy" },
+    { name = "pydantic" },
+    { name = "semver" },
+    { name = "silx" },
+    { name = "xarray", version = "2024.7.0", source = { registry = "https://pypi.org/simple" }, extra = ["io"], marker = "python_full_version < '3.10'" },
+    { name = "xarray", version = "2025.1.2", source = { registry = "https://pypi.org/simple" }, extra = ["io"], marker = "python_full_version >= '3.10'" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "codespell", marker = "extra == 'dev'", specifier = ">=2.4.0" },
+    { name = "deptry", marker = "extra == 'dev'", specifier = ">=0.22.0" },
+    { name = "einops", specifier = ">=0.7.0,<2.0.0" },
+    { name = "hdf5storage", specifier = ">=0.1.16,<1.0.0" },
+    { name = "import-linter", marker = "extra == 'dev'", specifier = ">=2.1" },
+    { name = "jaxtyping", specifier = ">=0.2.23" },
+    { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.4.2" },
+    { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=8.5.10" },
+    { name = "mkdocstrings", extras = ["python"], marker = "extra == 'dev'", specifier = ">=0.26.1" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=0.991" },
+    { name = "nibabel", specifier = ">=5.3.2" },
+    { name = "numpy", specifier = ">=1.25.0" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=2.20.0" },
+    { name = "pydantic", specifier = ">=2.7.0,<3.0.0" },
+    { name = "pyright", marker = "extra == 'dev'", specifier = "==1.1.339" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.2.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.9.2" },
+    { name = "semver", specifier = ">=3.0.2" },
+    { name = "silx", specifier = ">=2.0.0" },
+    { name = "tox-uv", marker = "extra == 'dev'", specifier = ">=1.11.3" },
+    { name = "xarray", extras = ["io"], specifier = ">=2022.3.0" },
+]
+
+[[package]]
 name = "deprecated"
 version = "1.2.18"
 source = { registry = "https://pypi.org/simple" }
@@ -841,6 +892,15 @@ wheels = [
 ]
 
 [[package]]
+name = "docstring-parser"
+version = "0.16"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/08/12/9c22a58c0b1e29271051222d8906257616da84135af9ed167c9e28f85cb3/docstring_parser-0.16.tar.gz", hash = "sha256:538beabd0af1e2db0146b6bd3caa526c35a34d61af9fd2887f3a8a27a739aa6e", size = 26565 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d5/7c/e9fcff7623954d86bdc17782036cbf715ecab1bec4847c008557affe1ca8/docstring_parser-0.16-py3-none-any.whl", hash = "sha256:bf0a1387354d3691d102edef7ec124f219ef639982d096e26e3b60aeffa90637", size = 36533 },
+]
+
+[[package]]
 name = "donfig"
 version = "0.8.1.post1"
 source = { registry = "https://pypi.org/simple" }
@@ -859,6 +919,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/79/ca/9f5dcb8bead39959454c3912266bedc4c315839cee0e0ca9f4328f4588c1/einops-0.8.0.tar.gz", hash = "sha256:63486517fed345712a8385c100cb279108d9d47e6ae59099b07657e983deae85", size = 58861 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/44/5a/f0b9ad6c0a9017e62d4735daaeb11ba3b6c009d69a26141b258cd37b5588/einops-0.8.0-py3-none-any.whl", hash = "sha256:9572fb63046264a862693b0a87088af3bdc8c068fde03de63453cbbde245465f", size = 43223 },
+]
+
+[[package]]
+name = "eval-type-backport"
+version = "0.2.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/30/ea/8b0ac4469d4c347c6a385ff09dc3c048c2d021696664e26c7ee6791631b5/eval_type_backport-0.2.2.tar.gz", hash = "sha256:f0576b4cf01ebb5bd358d02314d31846af5e07678387486e2c798af0e7d849c1", size = 9079 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ce/31/55cd413eaccd39125368be33c46de24a1f639f2e12349b0361b4678f3915/eval_type_backport-0.2.2-py3-none-any.whl", hash = "sha256:cb6ad7c393517f476f96d456d0412ea80f0a8cf96f6892834cd9340149111b0a", size = 5830 },
 ]
 
 [[package]]
@@ -1537,43 +1606,14 @@ wheels = [
 
 [[package]]
 name = "jaxtyping"
-version = "0.2.36"
+version = "0.2.34"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version < '3.10' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.10' and sys_platform == 'linux'",
-    "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.10' and sys_platform != 'darwin' and sys_platform != 'linux')",
-]
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.10'" },
+    { name = "typeguard" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a6/cc/76e38d7d24e590d1a819c9b203b537e5c6416e1c1aebc8c25f598a00d474/jaxtyping-0.2.36.tar.gz", hash = "sha256:781ac44a3cf8982063d7ee48b5008ccfad7b13793bf878eb3058d5319aa08f0f", size = 45171 }
+sdist = { url = "https://files.pythonhosted.org/packages/32/cb/580f3ec30b9e52b79c0288c033a1f0a90378f3b820707a2e8894c076481b/jaxtyping-0.2.34.tar.gz", hash = "sha256:eed9a3458ec8726c84ea5457ebde53c964f65d2c22c0ec40d0555ae3fed5bbaf", size = 32688 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/94/99/c83c6a97f4382caf1c9bfeeeca935d3eb1f479f711665aeadf4408048107/jaxtyping-0.2.36-py3-none-any.whl", hash = "sha256:b19bcbd4009df8734602203402483a4066ad2eb3382904432e370588e9c9707d", size = 55823 },
-]
-
-[[package]]
-name = "jaxtyping"
-version = "0.2.37"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.12.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.11.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.10.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.12' and sys_platform == 'linux'",
-    "python_full_version == '3.11.*' and sys_platform == 'linux'",
-    "python_full_version == '3.10.*' and sys_platform == 'linux'",
-    "(python_full_version >= '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.10.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
-]
-dependencies = [
-    { name = "wadler-lindig", marker = "python_full_version >= '3.10'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/56/d1/acd3abf3587487ae131a022328c44068c5ca96e766ed2841c292c2a70ffc/jaxtyping-0.2.37.tar.gz", hash = "sha256:ae8c124abbea61b8c56455fb8b42f1183ab63353572aedfb1de355bb5b40e951", size = 45615 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/89/7b/623d15216d70e6c1cf149163ee4559e6da23ea0118f8cd7c72fdfb951298/jaxtyping-0.2.37-py3-none-any.whl", hash = "sha256:519f694ce569ba5000a1f8823e742df2d86e6da3956d2218769b6bdc5ad2d23a", size = 56263 },
+    { url = "https://files.pythonhosted.org/packages/56/ae/220537f80eb82ae43a299de31edb2a91a28b8c5fb8046e9ff853ec7763cd/jaxtyping-0.2.34-py3-none-any.whl", hash = "sha256:2f81fb6d1586e497a6ea2d28c06dcab37b108a096cbb36ea3fe4fa2e1c1f32e5", size = 42426 },
 ]
 
 [[package]]
@@ -2029,12 +2069,13 @@ wheels = [
 
 [[package]]
 name = "mangrove"
-version = "5.4.4"
+version = "7.0.0"
 source = { directory = "../Mangrove" }
 dependencies = [
     { name = "beartype" },
     { name = "cachetools" },
     { name = "colorcet" },
+    { name = "dendrology" },
     { name = "einops" },
     { name = "gdown" },
     { name = "hdf5storage" },
@@ -2042,14 +2083,14 @@ dependencies = [
     { name = "hydra-core" },
     { name = "jax", version = "0.4.30", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "jax", version = "0.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "jaxtyping", version = "0.2.36", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "jaxtyping", version = "0.2.37", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "jaxtyping" },
     { name = "loguru" },
     { name = "matplotlib", version = "3.9.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "matplotlib", version = "3.10.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "mlx", version = "0.2.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'linux'" },
     { name = "mlx", version = "0.22.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
     { name = "natsort" },
+    { name = "nibabel" },
     { name = "numba", version = "0.60.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "numba", version = "0.61.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10' and python_full_version < '3.12'" },
     { name = "numpy" },
@@ -2086,6 +2127,7 @@ requires-dist = [
     { name = "colorcet", specifier = ">=3.0.0,<4.0.0" },
     { name = "cookiecutter", marker = "extra == 'chestnut'", specifier = ">=2.4.0" },
     { name = "cupy-cuda12x", marker = "sys_platform == 'linux' and extra == 'cuda'", specifier = ">=13.0.0,<15.0.0" },
+    { name = "dendrology", editable = "../dendrology" },
     { name = "einops", specifier = ">=0.7.0,<2.0.0" },
     { name = "enum-tools", extras = ["sphinx"], marker = "extra == 'docs'", specifier = ">=0.12.0" },
     { name = "firmware", marker = "python_full_version == '3.9.*' and platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'butterfly'", specifier = ">=24.8.8,<24.10.29", index = "https://pypi.fury.io/forest-neurotech/" },
@@ -2109,7 +2151,7 @@ requires-dist = [
     { name = "ipywidgets", marker = "extra == 'viz'", specifier = ">=7.0.0" },
     { name = "jax", specifier = ">=0.4.0,<1.0.0" },
     { name = "jax", extras = ["cuda12"], marker = "sys_platform == 'linux' and extra == 'cuda'", specifier = ">=0.4.0,<1.0" },
-    { name = "jaxtyping", specifier = ">=0.2.23,<1.0.0" },
+    { name = "jaxtyping", specifier = ">=0.2.23,<=0.2.34" },
     { name = "jupyter", marker = "extra == 'viz'", specifier = ">=1.0.0" },
     { name = "loguru", specifier = ">=0.7.0,<1.0.0" },
     { name = "mangrove", extras = ["butterfly", "chestnut", "viz"], marker = "extra == 'complete'" },
@@ -2121,6 +2163,7 @@ requires-dist = [
     { name = "natsort", specifier = ">=8.1.0,<9.0.0" },
     { name = "natsort", marker = "extra == 'chestnut'", specifier = ">=8.1.0,<9.0.0" },
     { name = "nbdime", marker = "extra == 'viz'", specifier = ">=2.0.0" },
+    { name = "nibabel", specifier = ">=5.0.0" },
     { name = "numba", marker = "python_full_version < '3.12'", specifier = ">=0.57.0,<1.0.0" },
     { name = "numpy", specifier = ">=1.25.0,<2.0.0" },
     { name = "numpy", marker = "extra == 'chestnut'", specifier = ">=1.25.0,<2.0.0" },
@@ -2150,7 +2193,7 @@ requires-dist = [
     { name = "tenacity", marker = "extra == 'chestnut'", specifier = ">=6.3.1" },
     { name = "toml", specifier = ">=0.10.0,<1.0.0" },
     { name = "types-pyyaml", marker = "extra == 'docs'", specifier = ">=6.0.12.12" },
-    { name = "vbeam", specifier = ">=1.0.10" },
+    { name = "vbeam", git = "ssh://git@github.com/charlesbmi/vbeam?branch=feature%2Frotate-az-el" },
     { name = "watchdog", specifier = ">=3.0.0,<4.0.0" },
     { name = "xarray", extras = ["io"], specifier = ">=2022.3.0" },
     { name = "xarray", extras = ["viz", "io"], marker = "extra == 'viz'", specifier = ">=2022.3.0" },
@@ -3774,6 +3817,15 @@ wheels = [
 ]
 
 [[package]]
+name = "shtab"
+version = "1.7.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a9/e4/13bf30c7c30ab86a7bc4104b1c943ff2f56c1a07c6d82a71ad034bcef1dc/shtab-1.7.1.tar.gz", hash = "sha256:4e4bcb02eeb82ec45920a5d0add92eac9c9b63b2804c9196c1f1fdc2d039243c", size = 45410 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e2/d1/a1d3189e7873408b9dc396aef0d7926c198b0df2aa3ddb5b539d3e89a70f/shtab-1.7.1-py3-none-any.whl", hash = "sha256:32d3d2ff9022d4c77a62492b6ec875527883891e33c6b479ba4d41a51e259983", size = 14095 },
+]
+
+[[package]]
 name = "silx"
 version = "2.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4046,12 +4098,38 @@ wheels = [
 ]
 
 [[package]]
+name = "typeguard"
+version = "2.13.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3a/38/c61bfcf62a7b572b5e9363a802ff92559cb427ee963048e1442e3aef7490/typeguard-2.13.3.tar.gz", hash = "sha256:00edaa8da3a133674796cf5ea87d9f4b4c367d77476e185e80251cc13dfbb8c4", size = 40604 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9a/bb/d43e5c75054e53efce310e79d63df0ac3f25e34c926be5dffb7d283fb2a8/typeguard-2.13.3-py3-none-any.whl", hash = "sha256:5e3e3be01e887e7eafae5af63d1f36c849aaa94e3a0112097312aabfa16284f1", size = 17605 },
+]
+
+[[package]]
 name = "typing-extensions"
 version = "4.12.2"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/df/db/f35a00659bc03fec321ba8bce9420de607a1d37f8342eee1863174c69557/typing_extensions-4.12.2.tar.gz", hash = "sha256:1a7ead55c7e559dd4dee8856e3a88b41225abfe1ce8df57b7c13915fe121ffb8", size = 85321 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/26/9f/ad63fc0248c5379346306f8668cda6e2e2e9c95e01216d2b8ffd9ff037d0/typing_extensions-4.12.2-py3-none-any.whl", hash = "sha256:04e5ca0351e0f3f85c6853954072df659d0d13fac324d0072316b67d7794700d", size = 37438 },
+]
+
+[[package]]
+name = "tyro"
+version = "0.9.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "docstring-parser" },
+    { name = "eval-type-backport", marker = "python_full_version < '3.10'" },
+    { name = "rich" },
+    { name = "shtab" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0e/5f/1385156a44d47910e53c7fa91489ff0ac3b056abecf0690b3b67727d0d4a/tyro-0.9.1.tar.gz", hash = "sha256:05c6a2c6d0584b5605972ac563cd3d6afa75597f0f8ce9d32581ce43b9a0f927", size = 231128 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/99/0e/07035fc62731e10c887786f1d8a1dfb31bbe01bd55d34b21c1d75b50ed0e/tyro-0.9.1-py3-none-any.whl", hash = "sha256:656862e6c10a6df913e78abe98ddae3ae5c0015f4d9446266c9efbd3f0d6817b", size = 111932 },
 ]
 
 [[package]]
@@ -4087,25 +4165,12 @@ wheels = [
 [[package]]
 name = "vbeam"
 version = "1.0.10"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "ssh://git@github.com/charlesbmi/vbeam?branch=feature%2Frotate-az-el#0dd4d00be5166cf66a42c9b9b50e765b24bb281e" }
 dependencies = [
     { name = "numpy" },
     { name = "pyuff-ustb" },
     { name = "scipy" },
     { name = "spekk" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/a9/6e/d8ffa8987f193c1fadd51b8653b2b396055d16bac44eff8ae37695316eae/vbeam-1.0.10.tar.gz", hash = "sha256:ee70fffa0d59deb5ff3a4c7bb89c5599a95ae68448a1672d2b67ff14a7e3c88a", size = 3533414 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/8b/cf/5bdb38bef799ff66bad0664f6ad70ace097eac80756f2ef3c32119336842/vbeam-1.0.10-py3-none-any.whl", hash = "sha256:04293a87eeb16a2f1bfc5c208b0700a9e9f917a7e58ebf76845f598f11ae6e49", size = 92496 },
-]
-
-[[package]]
-name = "wadler-lindig"
-version = "0.1.3"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/7a/a2/e8fc843e14aec55d18572a93c5443cc89a6b7d537b90d804f7b373301d9f/wadler_lindig-0.1.3.tar.gz", hash = "sha256:476fb7015135f714cef8f8eac7c44b164c8b993345e651a9b6f25b7b112440c9", size = 15197 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/39/3b/5b918a0da0d6920e7f7328cf0ab00df31b905d709f458596304f09096785/wadler_lindig-0.1.3-py3-none-any.whl", hash = "sha256:3018e4e6b115a7ef21c77414a41cbe7e03e83f6b5e25004958e33432a17f3c94", size = 20140 },
 ]
 
 [[package]]

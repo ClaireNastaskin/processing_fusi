@@ -6,12 +6,8 @@ ENV := $(PWD)/.env
 # Export the UV_INDEX_FOREST_USERNAME variable to subprocesses
 export UV_INDEX_FOREST_USERNAME
 
-.PHONY: pin-python
-pin-python: ## Pins Python version to 3.9 for Butterfly SDK compatibility
-	uv python pin 3.9  # Need this for Butterfly SDK
-
 .PHONY: install
-install: pin-python
+install: ## Installs uv and syncs dependencies
 	@if ! command -v uv &> /dev/null; then \
 		echo "uv not found. Installing uv..."; \
 		curl -LsSf https://astral.sh/uv/install.sh | sh; \
@@ -22,8 +18,6 @@ install: pin-python
 		uv self update; \
 	fi
 	@uv sync
-
-
 
 .PHONY: lint
 lint: ## Runs code formatting, linting, and spell checking

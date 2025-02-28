@@ -15,9 +15,12 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
+    "beartype>=0.14.0",
     "pybids>=0.18.1",
     "numpy>=1.26.4",
     "dipy>=1.10.0",
+    "jaxtyping >=0.2.23",
+    "loguru >=0.7.0",
     "nilearn>=0.11.1",
     "matplotlib>=3.9.4",
     "mne>=1.8.0",
@@ -25,6 +28,7 @@ dependencies = [
     "imageio-ffmpeg>=0.6.0",
     "antspyx>=0.5.4",
     "imageio>=2.37.0",
+    "tyro >=0.5.0",  # quick CLI development
     "mangrove",
 ]
 requires-python = ">=3.9"
@@ -147,8 +151,7 @@ reportPrivateImportUsage = "none"  # tenacity==6.3.1 issue
 markers = [
   "integration: mark integration tests.",
   "slow: slow tests (> 1 second).",
-  "experiment_data: requires path to experiment data.",
-  "benchmark: mark a test with custom benchmark settings.",
+  "network: mark a test that requires network access.",
 ]
 filterwarnings = [
   "error",  # make warnings errors
