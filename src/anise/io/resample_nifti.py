@@ -11,6 +11,7 @@ from jaxtyping import Real, jaxtyped
 from loguru import logger
 from nilearn.image import resample_to_img
 from nilearn.image.resampling import get_bounds
+from tqdm import tqdm
 
 
 @jaxtyped(typechecker=typechecker)
@@ -122,7 +123,7 @@ def create_background_image(
 def resample_to_standard_affine(
     niimgs: Union[nib.Nifti1Image, list[nib.Nifti1Image]],
     target_pixdim_mm: Optional[list[float]] = None,
-    fill_value: float = -100,
+    fill_value: Union[float, np.floating] = -np.inf,
 ) -> list[nib.Nifti1Image]:
     """Resample NIFTI images to a standardized affine.
 
@@ -167,26 +168,98 @@ def resample_to_standard_affine(
         raise ValueError(msg)
 
     # Resample each image to the background image
-    resampled_imgs = [
-        resample_to_img(
+    resampled_imgs = []
+    for img in tqdm(niimgs, desc="Resampling", unit="NIFTI"):
+        resampled = resample_to_img(
             source_img=img,
             target_img=background_img,
             copy_header=True,
             fill_value=fill_value,
             force_resample=True,
         )
-        for img in niimgs
-    ]
+        # Restore previous display range
+        resampled.header["cal_min"] = img.header["cal_min"]
+        resampled.header["cal_max"] = img.header["cal_max"]
+        resampled_imgs.append(resampled)
 
     return resampled_imgs
+
+
+def aggregate_nifti_images(
+    niimgs: list[nib.Nifti1Image],
+    fill_value: Union[float, np.floating] = -np.inf,
+) -> tuple[nib.Nifti1Image, nib.Nifti1Image]:
+    """Aggregate multiple NIFTI images with the same affine.
+
+    For each voxel, sums the values across all images and divides by the square root
+    of the number of images that have valid (non-fill) values at that voxel.
+
+    Args:
+        niimgs: List of NIFTI images with identical affines
+        fill_value: Value used to indicate background/missing data
+
+    Returns:
+        tuple containing:
+            - Aggregated NIFTI image
+            - Overlay count NIFTI image (with intent code 1002 for Label)
+
+    Raises:
+        ValueError: If input images have different affines
+    """
+    if not niimgs:
+        raise ValueError("No images provided")
+
+    # Check that all affines match
+    reference_affine = niimgs[0].affine
+    for idx, img in enumerate(niimgs[1:], start=1):
+        if not np.allclose(img.affine, reference_affine):
+            msg = f"Affine of image {idx} does not match reference affine"
+            raise ValueError(msg)
+
+    # Convert images to numpy arrays
+    data_arrays = [img.get_fdata() for img in niimgs]
+    masked_data = np.ma.masked_array(
+        data_arrays,
+        mask=np.logical_or(
+            ~np.isfinite(data_arrays), np.isclose(data_arrays, fill_value)
+        ),
+    )
+
+    # Sum the values and count valid entries
+    sum_array = np.ma.sum(masked_data, axis=0)
+    overlay_count = (~masked_data.mask).sum(axis=0).astype(np.uint32)
+
+    # Normalize by sqrt(overlay_count)
+    # The division is automatically masked where count is 0
+    normalized_array = sum_array / np.ma.sqrt(overlay_count)
+
+    # Fill masked values with fill_value
+    final_array = normalized_array.filled(fill_value)
+
+    # Create output images
+    aggregated_img = nib.Nifti1Image(
+        final_array,
+        reference_affine,
+        header=niimgs[0].header.copy(),
+    )
+
+    overlay_count_img = nib.Nifti1Image(
+        overlay_count,
+        reference_affine,
+        header=niimgs[0].header.copy(),
+    )
+    overlay_count_img.header.set_intent("label")
+
+    return aggregated_img, overlay_count_img
 
 
 def main(
     input_files: list[Path],
     output_dir: Path,
     target_pixdim_mm: Optional[float] = None,
-    output_suffix: str = "_resampled",
-    fill_value: float = -100,
+    resampled_suffix: Optional[str] = "_resampled",
+    aggregate_filename: Optional[Path] = Path("aggregate.nii.gz"),
+    fill_value: Union[float, np.floating] = -np.inf,
 ):
     """Resample NIFTI images to a standardized affine.
 
@@ -194,9 +267,16 @@ def main(
         input_files: List of input NIFTI file paths
         output_dir: Directory to save resampled images
         target_pixdim_mm: Target pixel dimensions (voxel sizes) in mm
-        output_suffix: Suffix to add to output filenames
+        resampled_suffix: Suffix to add to output filenames
+            if None, do not save resampled data
+        aggregate_filename: Filename to save aggregate resampled data
+            if None, do not save aggregate data
         fill_value: Value to fill background voxels with
     """
+    # Function is only meaningful if we save out a file
+    if resampled_suffix is None and aggregate_filename is None:
+        raise ValueError("Use --resampled-suffix or --aggregate-filename")
+
     # Create output directory if it doesn't exist
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -212,12 +292,33 @@ def main(
         # Handle .nii and .nii.gz files
         stem = input_path.stem.removesuffix(".nii")
         suffix = ".nii.gz" if input_path.suffix == ".gz" else ".nii"
-        output_filename = f"{stem}{output_suffix}{suffix}"
+        output_filename = f"{stem}{resampled_suffix}{suffix}"
         output_path = output_dir / output_filename
 
         # Save resampled image
         nib.save(resampled_img, output_path)
         logger.info(f"Saved resampled image to {output_path}")
+
+    if aggregate_filename is not None:
+        # can use absolute path or relative to output_dir
+        aggregate_path = (
+            aggregate_filename
+            if aggregate_filename.is_absolute()
+            else output_dir / aggregate_filename
+        )
+        aggregated_img, overlay_count_img = aggregate_nifti_images(
+            niimgs=resampled_imgs,
+            fill_value=fill_value,
+        )
+        nib.save(aggregated_img, aggregate_path)
+        logger.info(f"Saved aggregate image to {aggregate_path}")
+
+        # Save overlay count image
+        overlay_count_path = aggregate_path.parent / (
+            aggregate_path.stem.removesuffix(".nii") + "_overlay_count.nii.gz"
+        )
+        nib.save(overlay_count_img, overlay_count_path)
+        logger.info(f"Saved overlay count image to {overlay_count_path}")
 
 
 if __name__ == "__main__":

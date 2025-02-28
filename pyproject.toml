@@ -30,6 +30,7 @@ dependencies = [
     "imageio>=2.37.0",
     "tyro >=0.5.0",  # quick CLI development
     "mangrove",
+    "tqdm>=4.0.0",
 ]
 requires-python = ">=3.9"
 
