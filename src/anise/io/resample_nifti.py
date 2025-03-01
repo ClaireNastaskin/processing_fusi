@@ -210,35 +210,38 @@ def aggregate_nifti_images(
         raise ValueError("No images provided")
 
     # Check that all affines match
-    reference_affine = niimgs[0].affine
+    reference_niimg = niimgs[0]
+    reference_affine = reference_niimg.affine
     for idx, img in enumerate(niimgs[1:], start=1):
         if not np.allclose(img.affine, reference_affine):
             msg = f"Affine of image {idx} does not match reference affine"
             raise ValueError(msg)
 
-    # Convert images to numpy arrays
-    data_arrays = [img.get_fdata() for img in niimgs]
-    masked_data = np.ma.masked_array(
-        data_arrays,
-        mask=np.logical_or(
-            ~np.isfinite(data_arrays), np.isclose(data_arrays, fill_value)
-        ),
+    # Initialize accumulator arrays
+    dtype = (
+        np.complex64
+        if np.issubdtype(reference_niimg.dataobj.dtype, np.complexfloating)
+        else np.float32
     )
+    result_array = np.zeros(shape=reference_niimg.shape, dtype=dtype)
+    overlay_count = np.zeros(shape=reference_niimg.shape, dtype=np.uint32)
 
-    # Sum the values and count valid entries
-    sum_array = np.ma.sum(masked_data, axis=0)
-    overlay_count = (~masked_data.mask).sum(axis=0).astype(np.uint32)
+    for img in tqdm(niimgs, desc="Aggregating", unit="NIFTI"):
+        data = img.get_fdata(dtype=dtype)
+        valid_mask = np.logical_and(np.isfinite(data), data != fill_value)
+        result_array[valid_mask] += data[valid_mask]
+        overlay_count[valid_mask] += 1
+        img.uncache()
 
     # Normalize by sqrt(overlay_count)
-    # The division is automatically masked where count is 0
-    normalized_array = sum_array / np.ma.sqrt(overlay_count)
-
-    # Fill masked values with fill_value
-    final_array = normalized_array.filled(fill_value)
+    mask = overlay_count > 0
+    result_array[mask] = result_array[mask] / np.sqrt(overlay_count[mask])
+    # Set background voxels to fill_value
+    result_array[~mask] = fill_value
 
     # Create output images
     aggregated_img = nib.Nifti1Image(
-        final_array,
+        result_array,
         reference_affine,
         header=niimgs[0].header.copy(),
     )
