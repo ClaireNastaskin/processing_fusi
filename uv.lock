@@ -1,24 +1,50 @@
 version = 1
 requires-python = ">=3.9"
 resolution-markers = [
-    "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.12.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.11.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.10.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.10' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.12' and sys_platform == 'linux'",
-    "python_full_version == '3.11.*' and sys_platform == 'linux'",
-    "python_full_version == '3.10.*' and sys_platform == 'linux'",
-    "python_full_version < '3.10' and sys_platform == 'linux'",
-    "(python_full_version >= '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.10.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.10' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version < '3.10' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 
 [[package]]
 name = "anise"
-version = "0.1.1"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "antspyx" },
@@ -64,7 +90,7 @@ requires-dist = [
     { name = "imageio-ffmpeg", specifier = ">=0.6.0" },
     { name = "jaxtyping", specifier = ">=0.2.23" },
     { name = "loguru", specifier = ">=0.7.0" },
-    { name = "mangrove", directory = "../Mangrove" },
+    { name = "mangrove", index = "https://pypi.fury.io/forest-neurotech/" },
     { name = "matplotlib", specifier = ">=3.9.4" },
     { name = "mne", specifier = ">=1.8.0" },
     { name = "nilearn", specifier = ">=0.11.1" },
@@ -347,7 +373,7 @@ name = "click"
 version = "8.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "platform_system == 'Windows'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b9/2e/0090cbf739cee7d23781ad4b89a9894a41538e4fcf4c31dcdd705b78eb8b/click-8.1.8.tar.gz", hash = "sha256:ed53c9d8990d83c2a27deae68e4ee337473f6330c040a31d4225c9574d16096a", size = 226593 }
 wheels = [
@@ -398,9 +424,15 @@ name = "contourpy"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version < '3.10' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.10' and sys_platform == 'linux'",
-    "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.10' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version < '3.10' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "numpy", marker = "python_full_version < '3.10'" },
@@ -478,16 +510,36 @@ name = "contourpy"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.12.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.11.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.10.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.12' and sys_platform == 'linux'",
-    "python_full_version == '3.11.*' and sys_platform == 'linux'",
-    "python_full_version == '3.10.*' and sys_platform == 'linux'",
-    "(python_full_version >= '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.10.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "numpy", marker = "python_full_version >= '3.10'" },
@@ -784,23 +836,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/50/4b/ce2d3a36f77186d7dbca0f10b33e6a1c0eee390d9434960d2a14e2736b52/deepdiff-8.1.1.tar.gz", hash = "sha256:dd7bc7d5c8b51b5b90f01b0e2fe23c801fd8b4c6a7ee7e31c5a3c3663fcc7ceb", size = 433560 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/66/f7/2df72b55635926872b947203aacbe7e1109a51929aec8ebfef8c4a348eb5/deepdiff-8.1.1-py3-none-any.whl", hash = "sha256:b0231fa3afb0f7184e82535f2b4a36636442ed21e94a0cf3aaa7982157e7ebca", size = 84655 },
-]
-
-[[package]]
-name = "dendrology"
-version = "0.4.4"
-source = { git = "ssh://git@github.com/Forest-Neurotech/dendrology?branch=feature%2Fgrid-metadata#4eb1375e1290b95c40ef39a9700d414910cc599b" }
-dependencies = [
-    { name = "einops" },
-    { name = "hdf5storage" },
-    { name = "jaxtyping" },
-    { name = "nibabel" },
-    { name = "numpy" },
-    { name = "pydantic" },
-    { name = "semver" },
-    { name = "silx" },
-    { name = "xarray", version = "2024.7.0", source = { registry = "https://pypi.org/simple" }, extra = ["io"], marker = "python_full_version < '3.10'" },
-    { name = "xarray", version = "2025.1.2", source = { registry = "https://pypi.org/simple" }, extra = ["io"], marker = "python_full_version >= '3.10'" },
 ]
 
 [[package]]
@@ -1458,9 +1493,15 @@ name = "jax"
 version = "0.4.30"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version < '3.10' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.10' and sys_platform == 'linux'",
-    "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.10' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version < '3.10' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "importlib-metadata", marker = "python_full_version < '3.10'" },
@@ -1480,16 +1521,36 @@ name = "jax"
 version = "0.5.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.12.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.11.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.10.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.12' and sys_platform == 'linux'",
-    "python_full_version == '3.11.*' and sys_platform == 'linux'",
-    "python_full_version == '3.10.*' and sys_platform == 'linux'",
-    "(python_full_version >= '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.10.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "jaxlib", version = "0.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
@@ -1508,9 +1569,15 @@ name = "jaxlib"
 version = "0.4.30"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version < '3.10' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.10' and sys_platform == 'linux'",
-    "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.10' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version < '3.10' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "ml-dtypes", marker = "python_full_version < '3.10'" },
@@ -1545,16 +1612,36 @@ name = "jaxlib"
 version = "0.5.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.12.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.11.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.10.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.12' and sys_platform == 'linux'",
-    "python_full_version == '3.11.*' and sys_platform == 'linux'",
-    "python_full_version == '3.10.*' and sys_platform == 'linux'",
-    "(python_full_version >= '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.10.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "ml-dtypes", marker = "python_full_version >= '3.10'" },
@@ -1645,9 +1732,15 @@ name = "kiwisolver"
 version = "1.4.7"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version < '3.10' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.10' and sys_platform == 'linux'",
-    "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.10' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version < '3.10' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/85/4d/2255e1c76304cbd60b48cee302b66d1dde4468dc5b1160e4b7cb43778f2a/kiwisolver-1.4.7.tar.gz", hash = "sha256:9893ff81bd7107f7b685d3017cc6583daadb4fc26e4a888350df530e41980a60", size = 97286 }
 wheels = [
@@ -1750,16 +1843,36 @@ name = "kiwisolver"
 version = "1.4.8"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.12.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.11.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.10.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.12' and sys_platform == 'linux'",
-    "python_full_version == '3.11.*' and sys_platform == 'linux'",
-    "python_full_version == '3.10.*' and sys_platform == 'linux'",
-    "(python_full_version >= '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.10.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/82/59/7c91426a8ac292e1cdd53a63b6d9439abd573c875c3f92c146767dd33faf/kiwisolver-1.4.8.tar.gz", hash = "sha256:23d5f023bdc8c7e54eb65f03ca5d5bb25b601eac4d7f1a042888a1f45237987e", size = 97538 }
 wheels = [
@@ -1861,9 +1974,15 @@ name = "llvmlite"
 version = "0.43.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version < '3.10' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.10' and sys_platform == 'linux'",
-    "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.10' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version < '3.10' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/9f/3d/f513755f285db51ab363a53e898b85562e950f79a2e6767a364530c2f645/llvmlite-0.43.0.tar.gz", hash = "sha256:ae2b5b5c3ef67354824fb75517c8db5fbe93bc02cd9671f3c62271626bc041d5", size = 157069 }
 wheels = [
@@ -1894,12 +2013,24 @@ name = "llvmlite"
 version = "0.44.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version == '3.11.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.10.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.11.*' and sys_platform == 'linux'",
-    "python_full_version == '3.10.*' and sys_platform == 'linux'",
-    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.10.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/89/6a/95a3d3610d5c75293d5dbbb2a76480d5d4eeba641557b69fe90af6c5b84e/llvmlite-0.44.0.tar.gz", hash = "sha256:07667d66a5d150abed9157ab6c0b9393c9356f229784a4385c02f99e94fc94d4", size = 171880 }
 wheels = [
@@ -2045,13 +2176,12 @@ wheels = [
 
 [[package]]
 name = "mangrove"
-version = "7.0.0"
-source = { directory = "../Mangrove" }
+version = "5.6.1"
+source = { registry = "https://pypi.fury.io/forest-neurotech/" }
 dependencies = [
     { name = "beartype" },
     { name = "cachetools" },
     { name = "colorcet" },
-    { name = "dendrology" },
     { name = "einops" },
     { name = "gdown" },
     { name = "hdf5storage" },
@@ -2063,8 +2193,8 @@ dependencies = [
     { name = "loguru" },
     { name = "matplotlib", version = "3.9.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "matplotlib", version = "3.10.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "mlx", version = "0.2.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'linux'" },
-    { name = "mlx", version = "0.22.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
+    { name = "mlx", version = "0.2.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_system == 'Linux'" },
+    { name = "mlx", version = "0.22.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'arm64' and platform_system == 'Darwin'" },
     { name = "natsort" },
     { name = "nibabel" },
     { name = "numba", version = "0.60.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -2087,112 +2217,8 @@ dependencies = [
     { name = "xarray", version = "2024.7.0", source = { registry = "https://pypi.org/simple" }, extra = ["io"], marker = "python_full_version < '3.10'" },
     { name = "xarray", version = "2025.1.2", source = { registry = "https://pypi.org/simple" }, extra = ["io"], marker = "python_full_version >= '3.10'" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiohttp-cors", marker = "extra == 'chestnut'", specifier = ">=0.7.0" },
-    { name = "aiohttp-devtools", marker = "extra == 'chestnut'", specifier = ">=1.1" },
-    { name = "asic-test", marker = "python_full_version == '3.9.*' and platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'butterfly'", specifier = ">=24.8.8,<24.10.29", index = "https://pypi.fury.io/forest-neurotech/" },
-    { name = "asic-test", marker = "python_full_version == '3.9.*' and platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'butterfly'", specifier = ">=24.8.8", index = "https://pypi.fury.io/forest-neurotech/" },
-    { name = "autodoc-pydantic", extras = ["erdantic"], marker = "extra == 'docs'", specifier = ">=2.0.0" },
-    { name = "beartype", specifier = ">=0.14.0,<1.0.0" },
-    { name = "bnihardwarewrapper", marker = "python_full_version == '3.9.*' and platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'butterfly'", specifier = ">=24.8.8,<24.10.29", index = "https://pypi.fury.io/forest-neurotech/" },
-    { name = "bnihardwarewrapper", marker = "python_full_version == '3.9.*' and platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'butterfly'", specifier = ">=24.8.8", index = "https://pypi.fury.io/forest-neurotech/" },
-    { name = "cachetools", specifier = ">=5.0.0,<6.0.0" },
-    { name = "click", marker = "extra == 'chestnut'", specifier = ">=7.1.2" },
-    { name = "colorcet", specifier = ">=3.0.0,<4.0.0" },
-    { name = "cookiecutter", marker = "extra == 'chestnut'", specifier = ">=2.4.0" },
-    { name = "cupy-cuda12x", marker = "sys_platform == 'linux' and extra == 'cuda'", specifier = ">=13.0.0,<15.0.0" },
-    { name = "dendrology", git = "ssh://git@github.com/Forest-Neurotech/dendrology?branch=feature%2Fgrid-metadata" },
-    { name = "einops", specifier = ">=0.7.0,<2.0.0" },
-    { name = "enum-tools", extras = ["sphinx"], marker = "extra == 'docs'", specifier = ">=0.12.0" },
-    { name = "firmware", marker = "python_full_version == '3.9.*' and platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'butterfly'", specifier = ">=24.8.8,<24.10.29", index = "https://pypi.fury.io/forest-neurotech/" },
-    { name = "firmware", marker = "python_full_version == '3.9.*' and platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'butterfly'", specifier = ">=24.8.8", index = "https://pypi.fury.io/forest-neurotech/" },
-    { name = "fpgatest", marker = "python_full_version == '3.9.*' and platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'butterfly'", specifier = ">=24.8.8,<24.10.29", index = "https://pypi.fury.io/forest-neurotech/" },
-    { name = "fpgatest", marker = "python_full_version == '3.9.*' and platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'butterfly'", specifier = ">=24.8.8", index = "https://pypi.fury.io/forest-neurotech/" },
-    { name = "gdown", specifier = ">=5.2.0" },
-    { name = "goprocam", marker = "extra == 'chestnut'", specifier = ">=4.2.0" },
-    { name = "h5py", marker = "extra == 'chestnut'", specifier = ">=3.10.0" },
-    { name = "hdf5storage", specifier = ">=0.1.16,<1.0.0" },
-    { name = "hydra-colorlog", specifier = ">=1.2.0" },
-    { name = "hydra-core", specifier = ">=1.3.2" },
-    { name = "hydra-core", marker = "extra == 'chestnut'", specifier = ">=1.3.2" },
-    { name = "imaging", marker = "python_full_version == '3.9.*' and platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'butterfly'", specifier = ">=24.8.8,<24.10.29", index = "https://pypi.fury.io/forest-neurotech/" },
-    { name = "imaging", marker = "python_full_version == '3.9.*' and platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'butterfly'", specifier = ">=24.8.8", index = "https://pypi.fury.io/forest-neurotech/" },
-    { name = "integration-test", marker = "python_full_version == '3.9.*' and platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'butterfly'", specifier = ">=24.8.8,<24.10.29", index = "https://pypi.fury.io/forest-neurotech/" },
-    { name = "integration-test", marker = "python_full_version == '3.9.*' and platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'butterfly'", specifier = ">=24.8.8", index = "https://pypi.fury.io/forest-neurotech/" },
-    { name = "ipykernel", marker = "extra == 'viz'", specifier = ">=6.0.0" },
-    { name = "ipympl", marker = "extra == 'viz'", specifier = ">=0.5.0" },
-    { name = "ipython", marker = "extra == 'viz'", specifier = ">=7.0.0" },
-    { name = "ipywidgets", marker = "extra == 'viz'", specifier = ">=7.0.0" },
-    { name = "jax", specifier = ">=0.4.0,<1.0.0" },
-    { name = "jax", extras = ["cuda12"], marker = "sys_platform == 'linux' and extra == 'cuda'", specifier = ">=0.4.0,<1.0" },
-    { name = "jaxtyping", specifier = ">=0.2.23,<=0.2.34" },
-    { name = "jupyter", marker = "extra == 'viz'", specifier = ">=1.0.0" },
-    { name = "loguru", specifier = ">=0.7.0,<1.0.0" },
-    { name = "mangrove", extras = ["butterfly", "chestnut", "viz"], marker = "extra == 'complete'" },
-    { name = "matplotlib", specifier = ">=3.8.3,<4.0.0" },
-    { name = "mlx", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'", specifier = ">=0.10.0,<1.0.0" },
-    { name = "mlx", marker = "sys_platform == 'linux'", specifier = "==0.2.0" },
-    { name = "msgpack", marker = "extra == 'chestnut'", specifier = ">=1.0.7" },
-    { name = "myst-parser", marker = "extra == 'docs'", specifier = ">=2.0.0" },
-    { name = "natsort", specifier = ">=8.1.0,<9.0.0" },
-    { name = "natsort", marker = "extra == 'chestnut'", specifier = ">=8.1.0,<9.0.0" },
-    { name = "nbdime", marker = "extra == 'viz'", specifier = ">=2.0.0" },
-    { name = "nibabel", specifier = ">=5.0.0" },
-    { name = "numba", marker = "python_full_version < '3.12'", specifier = ">=0.57.0,<1.0.0" },
-    { name = "numpy", specifier = ">=1.25.0,<2.0.0" },
-    { name = "numpy", marker = "extra == 'chestnut'", specifier = ">=1.25.0,<2.0.0" },
-    { name = "opencv-python", marker = "extra == 'chestnut'", specifier = ">=4.10.0" },
-    { name = "pandas", specifier = ">=1.5.2,<3.0.0" },
-    { name = "pillow", marker = "extra == 'chestnut'", specifier = ">=10.3.0" },
-    { name = "pint", specifier = ">=0.18" },
-    { name = "pint-pandas", specifier = ">=0.5" },
-    { name = "pint-xarray", specifier = ">=0.4" },
-    { name = "plotly", marker = "extra == 'chestnut'", specifier = ">=5.22.0" },
-    { name = "pydantic", specifier = ">=2.7.0,<3.0.0" },
-    { name = "pydantic", marker = "extra == 'chestnut'", specifier = ">=2.4.0,<3.0.0" },
-    { name = "pygame", marker = "extra == 'chestnut'", specifier = ">=2.5.2" },
-    { name = "python-dotenv", specifier = "==1.0.1" },
-    { name = "python-dotenv", marker = "extra == 'chestnut'", specifier = ">=1.0.1" },
-    { name = "pyyaml", marker = "extra == 'butterfly'", specifier = ">=5.4.1", index = "https://pypi.fury.io/forest-neurotech/" },
-    { name = "redis", marker = "extra == 'chestnut'", specifier = ">=5.0.1" },
-    { name = "scipy", specifier = ">=1.9.0,<1.13.0" },
-    { name = "screeninfo", specifier = ">=0.8.1" },
-    { name = "seaborn", specifier = ">=0.12.0,<1.0.0" },
-    { name = "semver", specifier = ">=3.0.2" },
-    { name = "semver", marker = "extra == 'chestnut'", specifier = ">=3.0.2" },
-    { name = "silx", specifier = ">=2.0.0" },
-    { name = "siphash24", marker = "extra == 'butterfly'", specifier = ">=1.0" },
-    { name = "sphinx", marker = "extra == 'docs'", specifier = ">=7.2.6" },
-    { name = "sphinx-rtd-theme", marker = "extra == 'docs'", specifier = ">=2.0.0" },
-    { name = "tenacity", marker = "extra == 'chestnut'", specifier = ">=6.3.1" },
-    { name = "toml", specifier = ">=0.10.0,<1.0.0" },
-    { name = "types-pyyaml", marker = "extra == 'docs'", specifier = ">=6.0.12.12" },
-    { name = "vbeam", git = "ssh://git@github.com/charlesbmi/vbeam?branch=feature%2Frotate-az-el" },
-    { name = "watchdog", specifier = ">=3.0.0,<4.0.0" },
-    { name = "xarray", extras = ["io"], specifier = ">=2022.3.0" },
-    { name = "xarray", extras = ["viz", "io"], marker = "extra == 'viz'", specifier = ">=2022.3.0" },
-    { name = "xdr", marker = "python_full_version == '3.9.*' and platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'butterfly'", specifier = ">=24.8.8,<24.10.29", index = "https://pypi.fury.io/forest-neurotech/" },
-    { name = "xdr", marker = "python_full_version == '3.9.*' and platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'butterfly'", specifier = ">=24.8.8", index = "https://pypi.fury.io/forest-neurotech/" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "codespell", specifier = ">=2.0.0,<3.0.0" },
-    { name = "cython", specifier = ">=0.29.21" },
-    { name = "hdf5storage", specifier = ">=0.1.16,<1.0.0" },
-    { name = "hypothesis", specifier = ">=6.0.0" },
-    { name = "import-linter", specifier = ">=1.12.0,<3.0.0" },
-    { name = "mangrove", extras = ["complete"] },
-    { name = "pyright", specifier = "==1.1.339" },
-    { name = "pytest", specifier = ">=6.0.0,<8.0.0" },
-    { name = "pytest-aiohttp", specifier = ">=1.0.5" },
-    { name = "pytest-cov", specifier = ">=4.1.0,<5.0.0" },
-    { name = "rich", specifier = ">=13.0" },
-    { name = "ruff", specifier = ">=0.7.1,<1.0.0" },
-    { name = "setuptools", specifier = ">=61.0" },
-    { name = "tyro", specifier = ">=0.5.0" },
+wheels = [
+    { url = "https://pypi.fury.io/forest-neurotech/-/ver_18FtE7/mangrove-5.6.1-py3-none-any.whl", hash = "sha256:7227cfca38c407d31d4afe6f700dfad5927227305e46f8eaab5c1a04ef4e5119" },
 ]
 
 [[package]]
@@ -2280,9 +2306,15 @@ name = "matplotlib"
 version = "3.9.4"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version < '3.10' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.10' and sys_platform == 'linux'",
-    "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.10' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version < '3.10' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "contourpy", version = "1.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -2345,16 +2377,36 @@ name = "matplotlib"
 version = "3.10.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.12.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.11.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.10.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.12' and sys_platform == 'linux'",
-    "python_full_version == '3.11.*' and sys_platform == 'linux'",
-    "python_full_version == '3.10.*' and sys_platform == 'linux'",
-    "(python_full_version >= '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.10.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "contourpy", version = "1.3.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
@@ -2445,10 +2497,19 @@ name = "mlx"
 version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.12' and sys_platform == 'linux'",
-    "python_full_version == '3.11.*' and sys_platform == 'linux'",
-    "python_full_version == '3.10.*' and sys_platform == 'linux'",
-    "python_full_version < '3.10' and sys_platform == 'linux'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "python_full_version < '3.10' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/db/4d/00dccfa1c8d1809c59b09ff1395fefe5041e22f0eda784f742d7f0a0a2b7/mlx-0.2.0-cp310-cp310-manylinux_2_31_x86_64.whl", hash = "sha256:1cb0771e8916e020c3197cd213c4244fc227c3cd0dab02e77e1c2b6260a44e7f", size = 11486267 },
@@ -2462,11 +2523,19 @@ name = "mlx"
 version = "0.22.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.12.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.11.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.10.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.10' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/41/3b/5160be3949dbed395c73646948f45d792a3de0dd6d8de213f26f2ea8d428/mlx-0.22.0-cp310-cp310-macosx_13_0_arm64.whl", hash = "sha256:8082581e05b09d576cdf241184992fe0f96dcae1a857de38a562b2439d4e3333", size = 27110425 },
@@ -2486,9 +2555,15 @@ name = "mne"
 version = "1.8.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version < '3.10' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.10' and sys_platform == 'linux'",
-    "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.10' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version < '3.10' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "decorator", marker = "python_full_version < '3.10'" },
@@ -2511,16 +2586,36 @@ name = "mne"
 version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.12.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.11.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.10.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.12' and sys_platform == 'linux'",
-    "python_full_version == '3.11.*' and sys_platform == 'linux'",
-    "python_full_version == '3.10.*' and sys_platform == 'linux'",
-    "(python_full_version >= '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.10.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "decorator", marker = "python_full_version >= '3.10'" },
@@ -2646,9 +2741,15 @@ name = "numba"
 version = "0.60.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version < '3.10' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.10' and sys_platform == 'linux'",
-    "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.10' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version < '3.10' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "llvmlite", version = "0.43.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -2683,12 +2784,24 @@ name = "numba"
 version = "0.61.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version == '3.11.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.10.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.11.*' and sys_platform == 'linux'",
-    "python_full_version == '3.10.*' and sys_platform == 'linux'",
-    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.10.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "llvmlite", version = "0.44.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10' and python_full_version < '3.12'" },
@@ -2723,9 +2836,15 @@ name = "numcodecs"
 version = "0.12.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version < '3.10' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.10' and sys_platform == 'linux'",
-    "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.10' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version < '3.10' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "numpy", marker = "python_full_version < '3.10'" },
@@ -2755,9 +2874,15 @@ name = "numcodecs"
 version = "0.13.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version == '3.10.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.10.*' and sys_platform == 'linux'",
-    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.10.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "numpy", marker = "python_full_version == '3.10.*'" },
@@ -2787,13 +2912,27 @@ name = "numcodecs"
 version = "0.15.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.12.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.11.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.12' and sys_platform == 'linux'",
-    "python_full_version == '3.11.*' and sys_platform == 'linux'",
-    "(python_full_version >= '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "deprecated", marker = "python_full_version >= '3.11'" },
@@ -3303,7 +3442,7 @@ name = "pyobjc-framework-cocoa"
 version = "11.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyobjc-core", marker = "sys_platform != 'linux'" },
+    { name = "pyobjc-core", marker = "(platform_machine != 'arm64' and sys_platform != 'linux') or (platform_system != 'Darwin' and sys_platform != 'linux') or (platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c5/32/53809096ad5fc3e7a2c5ddea642590a5f2cb5b81d0ad6ea67fdb2263d9f9/pyobjc_framework_cocoa-11.0.tar.gz", hash = "sha256:00346a8cb81ad7b017b32ff7bf596000f9faa905807b1bd234644ebd47f692c5", size = 6173848 }
 wheels = [
@@ -4051,7 +4190,7 @@ name = "tqdm"
 version = "4.67.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "platform_system == 'Windows'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a8/4b/29b4ef32e036bb34e4ab51796dd745cdba7ed47ad142a9f4a1eb8e0c744d/tqdm-4.67.1.tar.gz", hash = "sha256:f8aef9c52c08c13a65f30ea34f4e5aac3fd1a34959879d7e59e63027286627f2", size = 169737 }
 wheels = [
@@ -4096,7 +4235,7 @@ name = "tyro"
 version = "0.9.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "platform_system == 'Windows'" },
     { name = "docstring-parser" },
     { name = "eval-type-backport", marker = "python_full_version < '3.10'" },
     { name = "rich" },
@@ -4141,12 +4280,16 @@ wheels = [
 [[package]]
 name = "vbeam"
 version = "1.0.10"
-source = { git = "ssh://git@github.com/charlesbmi/vbeam?branch=feature%2Frotate-az-el#0dd4d00be5166cf66a42c9b9b50e765b24bb281e" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "pyuff-ustb" },
     { name = "scipy" },
     { name = "spekk" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a9/6e/d8ffa8987f193c1fadd51b8653b2b396055d16bac44eff8ae37695316eae/vbeam-1.0.10.tar.gz", hash = "sha256:ee70fffa0d59deb5ff3a4c7bb89c5599a95ae68448a1672d2b67ff14a7e3c88a", size = 3533414 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8b/cf/5bdb38bef799ff66bad0664f6ad70ace097eac80756f2ef3c32119336842/vbeam-1.0.10-py3-none-any.whl", hash = "sha256:04293a87eeb16a2f1bfc5c208b0700a9e9f917a7e58ebf76845f598f11ae6e49", size = 92496 },
 ]
 
 [[package]]
@@ -4272,9 +4415,15 @@ name = "xarray"
 version = "2024.7.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version < '3.10' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.10' and sys_platform == 'linux'",
-    "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.10' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version < '3.10' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "numpy", marker = "python_full_version < '3.10'" },
@@ -4303,16 +4452,36 @@ name = "xarray"
 version = "2025.1.2"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.12.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.11.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.10.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.12' and sys_platform == 'linux'",
-    "python_full_version == '3.11.*' and sys_platform == 'linux'",
-    "python_full_version == '3.10.*' and sys_platform == 'linux'",
-    "(python_full_version >= '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.10.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "numpy", marker = "python_full_version >= '3.10'" },
@@ -4341,9 +4510,15 @@ name = "zarr"
 version = "2.18.2"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version < '3.10' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version < '3.10' and sys_platform == 'linux'",
-    "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.10' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version < '3.10' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version < '3.10' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version < '3.10' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "asciitree", marker = "python_full_version < '3.10'" },
@@ -4361,9 +4536,15 @@ name = "zarr"
 version = "2.18.3"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version == '3.10.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.10.*' and sys_platform == 'linux'",
-    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.10.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.10.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.10.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.10.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "asciitree", marker = "python_full_version == '3.10.*'" },
@@ -4381,13 +4562,27 @@ name = "zarr"
 version = "3.0.2"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.13' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.12.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version == '3.11.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
-    "python_full_version >= '3.12' and sys_platform == 'linux'",
-    "python_full_version == '3.11.*' and sys_platform == 'linux'",
-    "(python_full_version >= '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version >= '3.12' and sys_platform != 'darwin' and sys_platform != 'linux')",
-    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Linux' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform == 'linux'",
+    "python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform == 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform == 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform == 'linux')",
+    "python_full_version >= '3.12' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version >= '3.12' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version >= '3.12' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "python_full_version == '3.11.*' and platform_machine == 'arm64' and platform_system == 'Darwin' and sys_platform != 'darwin' and sys_platform != 'linux'",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system == 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system == 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
+    "(python_full_version == '3.11.*' and platform_machine != 'arm64' and platform_system != 'Linux' and sys_platform != 'linux') or (python_full_version == '3.11.*' and platform_system != 'Darwin' and platform_system != 'Linux' and sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 dependencies = [
     { name = "donfig", marker = "python_full_version >= '3.11'" },
