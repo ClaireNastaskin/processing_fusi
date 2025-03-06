@@ -1,14 +1,13 @@
+import json
 import numpy as np
-import nibabel as nib
-import os
 import pandas as pd
-import re
 import h5py
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
+from typing import Union
 
 
-def behavior_loader(h5_file_path):
+def behavior_loader(h5_file_path, exp_start_time):
     """
     Reads an HDF5 file, extracts timestamps and event descriptions from the dataset, and organizes this information into a DataFrame.
 
@@ -20,34 +19,45 @@ def behavior_loader(h5_file_path):
     """
 
     # Open the HDF5 file
-    with h5py.File(h5_file_path, 'r') as file:
-        # Extract data from the 'data' dataset
-        dataset = file['data'][:]
-        
-        # Extract fields
-        events = dataset['event']
-        timestamps = dataset['timestamp']
+    with h5py.File(h5_file_path, "r") as file:
+        dataset = file["data"][:]
+        events = [event.decode("utf-8") for event in dataset["event"]]
+        timestamps = dataset["timestamp"]
+        payloads = [payload.decode("utf-8") for payload in dataset["payload"]]
+    if all(event == "event" for event in events):
+        df = pd.DataFrame([json.loads(payload) for payload in payloads])
+    else:
+        df = pd.DataFrame({"stimulus": events})
+        df["start"] = [("enab" in event or "start" in event) for event in events]
+        df["stop"] = [("disab" in event or "stop" in event) for event in events]
+    if "timestamp" in df.columns:
+        df["timestamp"] = [
+            (datetime.fromisoformat(timestamp).astimezone(timezone.utc) - exp_start_time).total_seconds()
+            for timestamp in df.timestamp
+        ]
+    else:
+        df["timestamp"] = timestamps
 
-    # Convert data to DataFrame
-    data = []
-    for i in range(len(timestamps)):
-        data.append({
-            'Event': events[i].decode('utf-8'),
-            'Timestamp': timestamps[i]
-            
-        })
-    print(data)
-    behavior_df = pd.DataFrame(data)
-    
-    event_on_delimiters = ['enab', 'start']
-    event_off_delimiters = ['disab', 'stop']
+    df_starts = df[df["start"]]
+    df_stops = df[df["stop"]]
+    df = df_starts.copy().drop(columns=["start", "stop"])
+    df = df.rename(columns={"stimulus": "trial_type", "timestamp": "onset"})
+    if len(df) > len(df_stops):
+        df = df.iloc[:-1]
+    df["duration"] = np.array(df_stops["timestamp"]) - np.array(df["onset"])
 
-    event_on = [event['Event'] for event in data if any(delimiter in event['Event'] for delimiter in event_on_delimiters)][0]
-    event_off = [event['Event'] for event in data if any(delimiter in event['Event'] for delimiter in event_off_delimiters)][0]
-    print(f'Using event on {event_on} and event off {event_off}')
+    return df
 
-    return calculate_stimulus_events_caltech_daq(behavior_df, event_on, event_off)
 
+def get_exp_start_time(run_folder: Path) -> Union[datetime, None]:
+    commands_fpath = run_folder / "streams" / "probe-commands_stream.h5"
+    if not commands_fpath.exists():
+        commands_fpath = run_folder / "streams" / "probe_1-commands_stream.h5"
+    if not commands_fpath.exists():
+        return
+    with h5py.File(commands_fpath, "r") as file:
+        timestamp = file.attrs["experiment_start_utc"]
+    return datetime.fromisoformat(timestamp).astimezone(timezone.utc)
 
 
 def calculate_stimulus_events_caltech_daq(behavior_df, event_on, event_off):
