@@ -557,7 +557,7 @@ def extract_probe_events(h5_file_path):
             payload_data = json.loads(payload[i])
 
             # Extract the filename from the output_path
-            file_name = os.path.basename(payload_data["ensemble_path"])
+            file_name = os.path.basename(payload_data["output_path"])
 
 
             data.append({
