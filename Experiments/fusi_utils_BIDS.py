@@ -1106,7 +1106,7 @@ import numpy as np
 from nilearn.glm.first_level import FirstLevelModel
 
 
-def extract_time_course_from_main_clusters(contrast, threshold,sample_masks,fusi_img, fusi_glm, probe_events, t_r):
+def extract_time_course_from_main_clusters(contrast, threshold,sample_masks,fusi_img, fusi_glm, probe_events, t_r, radius):
 
     z_map = fusi_glm.compute_contrast(contrast)
     table = get_clusters_table(z_map, stat_threshold=threshold, cluster_threshold=10)
@@ -1119,7 +1119,7 @@ def extract_time_course_from_main_clusters(contrast, threshold,sample_masks,fusi
     # extract time series from each coordinate
     masker = NiftiSpheresMasker(
         coords,
-        radius=3,
+        radius=radius,
         detrend=True,
         standardize="zscore",
         t_r=t_r,
@@ -1163,7 +1163,7 @@ import pandas as pd
 
 def display_real_and_predicted_timecourses(contrast, real_timecourse, predicted_timecourse,task_events, coords, z_map, mean_image):
     colors = ["blue", "navy", "purple", "magenta", "olive", "teal"]
-    task_colors = ['blue','purple', 'gray', 'lightgreen']
+    task_colors = ['blue', 'purple', 'gray', 'lightgreen', 'red', 'orange', 'yellow', 'pink', 'cyan']
 
     # plot the time series and corresponding locations
     fig1, axs1 = plt.subplots(2, 2, figsize=(24, 14))
@@ -1214,7 +1214,9 @@ def display_real_and_predicted_timecourses(contrast, real_timecourse, predicted_
             start_times = task_events_timing[task_events_timing["Event"] == "start"]["Timestamp"]
             stop_times = task_events_timing[task_events_timing["Event"] == "stop"]["Timestamp"]
             for start, stop in zip(start_times, stop_times):
-                axs1[0, i].axvspan(start, stop, color=task_colors[task_index], alpha=0.3, label=task if start == start_times.iloc[0] else "")
+                # Ensure task_index is within bounds of task_colors list
+                color = task_colors[task_index % len(task_colors)]
+                axs1[0, i].axvspan(start, stop, color=color, alpha=0.3, label=task if start == start_times.iloc[0] else "")
         
         # Add legend
         axs1[0, i].legend()
@@ -1226,7 +1228,7 @@ def display_real_and_predicted_timecourses(contrast, real_timecourse, predicted_
             threshold=3.1,
             figure=fig1,
             axes=axs1[1, i],
-            display_mode="z",
+            display_mode="y",
             colorbar=False,
             bg_img=mean_image,
             cmap='inferno'
@@ -1236,7 +1238,74 @@ def display_real_and_predicted_timecourses(contrast, real_timecourse, predicted_
 
     show()
 
+def display_predicted_timecourses(contrast, predicted_timecourse,task_events, coords, z_map, mean_image):
+    colors = ["blue", "navy", "purple", "magenta", "olive", "teal"]
+    task_colors = ['blue', 'purple', 'gray', 'lightgreen', 'red', 'orange', 'yellow', 'pink', 'cyan']
 
+    # plot the time series and corresponding locations
+    fig1, axs1 = plt.subplots(2, 2, figsize=(24, 14))
+    
+    # Add master title
+    fig1.suptitle(contrast, fontsize=16)
+
+    for i in range(2):
+        # plotting time series
+        axs1[0, i].set_title(f"Cluster peak {coords[i]}\n")
+        axs1[0, i].plot(
+            predicted_timecourse["time_stamps"],
+            predicted_timecourse[f"signal_roi{i+1}"],
+            c="black",
+            ls="--",
+            lw=1,
+            label=f'Predicted {contrast} contribution to total signal'
+        )
+        axs1[0, i].set_xlabel("Time")
+        axs1[0, i].set_ylabel("Signal intensity", labelpad=0)
+        
+        # Add colored rectangles for stimulus periods
+        task_list_type = task_events.trial_type.unique()
+        for task_index in range(len(task_list_type)):
+            task = task_list_type[task_index]
+            task_events_timing = pd.DataFrame()
+            task_events_timing["Event"] = ["start", "stop"] * len(task_events[task_events["trial_type"] == task])
+            task_events_timing["Timestamp"] = [
+                onset
+                for onset, duration in zip(
+                    task_events[task_events["trial_type"] == task]["onset"],
+                    task_events[task_events["trial_type"] == task]["duration"],
+                )
+                for _ in range(2)
+            ]
+            task_events_timing.loc[task_events_timing["Event"] == "stop", "Timestamp"] += (
+                task_events[task_events["trial_type"] == task]["duration"].values.repeat(1)
+            )
+            task_events_timing = task_events_timing.sort_values("Timestamp").reset_index(drop=True)
+            start_times = task_events_timing[task_events_timing["Event"] == "start"]["Timestamp"]
+            stop_times = task_events_timing[task_events_timing["Event"] == "stop"]["Timestamp"]
+            for start, stop in zip(start_times, stop_times):
+                # Ensure task_index is within bounds of task_colors list
+                color = task_colors[task_index % len(task_colors)]
+                axs1[0, i].axvspan(start, stop, color=color, alpha=0.3, label=task if start == start_times.iloc[0] else "")
+        
+        # Add legend
+        axs1[0, i].legend()
+        
+        # plotting image below the time series
+        roi_img = plot_stat_map(
+            z_map,
+            cut_coords=[coords[i][2]],
+            threshold=3.1,
+            figure=fig1,
+            axes=axs1[1, i],
+            display_mode="y",
+            colorbar=False,
+            bg_img=mean_image,
+            cmap='inferno'
+        )
+        roi_img.add_markers([coords[i]], colors[i], 300)
+    fig1.set_size_inches(24, 14)
+
+    show()
 
 def display_regressor_temporal_component(
     contrast,
@@ -1270,7 +1339,7 @@ def display_regressor_temporal_component(
         'time_stamps': pred_timestamps
     })
 
-    task_colors = ['blue','purple', 'gray', 'lightgreen']
+    task_colors = ['blue', 'purple', 'gray', 'lightgreen', 'red', 'orange', 'yellow', 'pink', 'cyan']  
 
     # plot the time series and corresponding locations
     fig1, axs1 = plt.subplots(1, 1, figsize=(12, 5))
@@ -1310,7 +1379,8 @@ def display_regressor_temporal_component(
         start_times = task_events_timing[task_events_timing["Event"] == "start"]["Timestamp"]
         stop_times = task_events_timing[task_events_timing["Event"] == "stop"]["Timestamp"]
         for start, stop in zip(start_times, stop_times):
-            axs1.axvspan(start, stop, color=task_colors[task_index], alpha=0.3, label=task if start == start_times.iloc[0] else "")
+            color = task_colors[task_index % len(task_colors)]
+            axs1.axvspan(start, stop, color=color, alpha=0.3, label=task if start == start_times.iloc[0] else "")
 
     # Add legend
     axs1.legend()
