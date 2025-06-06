@@ -6,9 +6,9 @@ from pathlib import Path
 import numpy as np
 import os
 
-base_path = Path('/Users/clairenastaskin/data/2025-05-20/sub-Forest001_ses-20250520_task-movements_run-007')  
+base_path = Path('/Users/clairenastaskin/data/2025-06-03/sub-Forest001_ses-20250603_task-movements_run-009')  
 
-start_clip_tsv_path = base_path / 'sub-Forest001_ses-20250520_task-movements_run-007_events.tsv'
+start_clip_tsv_path = base_path / 'sub-Forest001_ses-20250603_task-movements_run-009_events.tsv'
 start_clip_tsv_file = pd.read_csv(start_clip_tsv_path, sep='\t')
 
 task_tsv_path = base_path / 'raw_events_for_clip1.tsv'
