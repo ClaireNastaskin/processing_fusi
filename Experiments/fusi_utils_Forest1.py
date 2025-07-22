@@ -15,7 +15,6 @@ import nilearn as nl
 from nilearn.glm.first_level import make_first_level_design_matrix
 from nilearn.plotting import plot_design_matrix
 
-from anise.io.load_matlab_dataset import load_data, load_selected_data
 import SimpleITK as sitk
 
 

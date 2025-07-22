@@ -542,12 +542,15 @@ def register_phase_corr(image_seq):
 def register_3d_image_stack(image_stack):
     # Assuming `image_stack` has dimensions (x, y, z, time)
     num_frames = image_stack.shape[3]
-
+    global_signal = np.mean(image_stack, axis=(0, 1, 2))
+    # Find the frame corresponding to the median global signal
+    median_frame_idx = np.argmin(np.abs(global_signal - np.median(global_signal)))
+    print(f"Median frame index: {median_frame_idx}")
     # Convert each 3D volume to a SimpleITK image
     sitk_images = [
         sitk.GetImageFromArray(image_stack[:, :, :, t]) for t in range(num_frames)
     ]
-    fixed_image = sitk_images[0]
+    fixed_image = sitk_images[median_frame_idx]
     registered_images = [fixed_image]
 
     # Array to store transformation parameters (tx, ty, tz, and angles if applicable)
