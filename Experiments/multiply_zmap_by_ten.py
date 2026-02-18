@@ -3,11 +3,11 @@ import nibabel as nib
 import numpy as np
 
 # Path to your folder
-folder = "/Users/clairenastaskin/data/2025-07-08/sub-Forest001_ses-20250708_task-sensory_run-004/realigned_volumes/"
+folder = "/Users/clairenastaskin/data/sub-Forest001/2026-02-03/fusi/task-movements_run-006"
 
 # Loop through files in the folder
 for fname in os.listdir(folder):
-    if fname.endswith("z_map_realigned.nii.gz"):
+    if fname.endswith("z_map.nii.gz"):
         filepath = os.path.join(folder, fname)
 
         # Load the NIfTI file
@@ -22,7 +22,7 @@ for fname in os.listdir(folder):
         new_img = nib.Nifti1Image(new_data, affine)
 
         # Create new filename
-        new_fname = fname.replace("z_map_realigned.nii.gz", "z_map_realigned10.nii.gz")
+        new_fname = fname.replace("z_map.nii.gz", "z_map_realigned10.nii.gz")
         new_path = os.path.join(folder, new_fname)
 
         # Save the modified image

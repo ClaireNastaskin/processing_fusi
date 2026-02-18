@@ -15,6 +15,15 @@ import SimpleITK as sitk
 from matplotlib.animation import FuncAnimation
 from IPython.display import HTML
 
+import matplotlib as mpl
+from matplotlib.animation import FuncAnimation, FFMpegWriter, PillowWriter
+
+# Use a self-contained ffmpeg from PyPI if available
+try:
+    import imageio_ffmpeg
+    mpl.rcParams['animation.ffmpeg_path'] = imageio_ffmpeg.get_ffmpeg_exe()
+except Exception:
+    pass
 
 # ------------------------------------------------------------------------
 # 0  General I/O
@@ -43,14 +52,12 @@ def global_signal(data: np.ndarray) -> np.ndarray:
     return np.nanmean(data, axis=(0, 1, 2))
 
 
-def plot_global_signal(sig: np.ndarray, out_png: Optional[Path] = None, y_lim: Optional[Tuple[float, float]] = None) -> None:
+def plot_global_signal(sig: np.ndarray, out_png: Optional[Path] = None) -> None:
     fig, ax = plt.subplots()
     ax.plot(sig)
     ax.set_title("Global signal")
     ax.set_xlabel("Frame #")
     ax.set_ylabel("Average Intensity")
-    if y_lim:
-        ax.set_ylim(y_lim[0], y_lim[1])
     if out_png:
         fig.savefig(out_png, dpi=150, bbox_inches='tight')
     plt.show()
@@ -61,31 +68,195 @@ def repetition_time(json_path: Path) -> float:
         frame_times = np.array(json.load(f)["VolumeTiming"])
     return float(np.median(np.diff(frame_times)))
 
-def probe_temperature(json_path: Path) -> np.ndarray:
-    with open(json_path) as f:
-        hdr = json.load(f)
 
-    # Accept a few alternative spellings in case the scanner software changes
-    for key in ("ProbeTemperature", "InterposerTemperature",
-                "probe_temperature", "interposer_temperature"):
-        if key in hdr:
-            return np.asarray(hdr[key], dtype=float)
+from pathlib import Path
+import json
+from typing import Union
+
+def first_volume_time(json_path: Union[str, Path]) -> float:
+    json_path = Path(json_path)
+    with json_path.open() as f:
+        first_time = json.load(f)["VolumeTiming"][0]
+    return float(first_time)
+
+
+from pathlib import Path
+from typing import Optional, Tuple
+import json
+import numpy as np
+import contextlib
+
+from pathlib import Path
+from typing import Optional, Tuple
+import json
+import numpy as np
+import contextlib
+
+def probe_temperature(
+    sidecar_path: Path,
+    zarr_path: Optional[Path] = None,
+    *,
+    zarr_group: str = "logs",
+    zarr_keys: Tuple[str, ...] = (
+        "INTERPOSER_TEMP",          # new (zarr)
+        "INTERPOSER_TEMPERATURE",   # possible variant
+        "ProbeTemperature",         # legacy JSON
+        "InterposerTemperature",    # legacy JSON
+        "probe_temperature",        # legacy JSON
+        "interposer_temperature",   # legacy JSON
+    ),
+    clip_trailing_zeros: bool = True,
+    zero_tol: float = 0.0,  # treat values |x| <= zero_tol as zero; default == exact zeros only
+) -> np.ndarray:
+    """
+    Return interposer/probe temperature as a 1‑D float array.
+
+    Priority:
+      (1) JSON sidecar (legacy)
+      (2) Zarr store (new), under `zarr_group` and any of `zarr_keys`.
+
+    If `zarr_path` is None, a few common locations are tried based on `sidecar_path`.
+
+    Trailing zero padding (common with preallocated logs) is removed by default.
+    Control with `clip_trailing_zeros` and `zero_tol`.
+    """
+    sidecar_path = Path(sidecar_path)
+
+    # ---- 1) Legacy JSON (backward compat)
+    with contextlib.suppress(Exception):
+        with open(sidecar_path) as f:
+            hdr = json.load(f)
+        for key in ("ProbeTemperature", "InterposerTemperature",
+                    "probe_temperature", "interposer_temperature"):
+            if key in hdr:
+                arr = np.atleast_1d(np.asarray(hdr[key], dtype=float)).ravel()
+                if clip_trailing_zeros:
+                    arr = _clip_trailing_zeros(arr, tol=zero_tol)
+                _validate_temperature(arr, key, sidecar_path.name)
+                return arr
+
+    # ---- 2) Zarr (new)
+    try:
+        import zarr  # lazy import
+    except Exception as e:
+        raise ImportError(
+            "Probe temperature appears to be stored in a Zarr, but `zarr` "
+            "is not installed. Install it (e.g., `pip install zarr`)."
+        ) from e
+
+    zp = Path(zarr_path) if zarr_path is not None else _infer_logs_zarr(sidecar_path)
+    if zp is None or not zp.exists():
+        hint = f"inferred '{zp}'" if zp is not None else "no candidate"
+        raise FileNotFoundError(
+            f"Could not locate a logs Zarr; {hint}. Pass zarr_path=... explicitly "
+            "or adjust `_infer_logs_zarr()`."
+        )
+
+    g = zarr.open(zp, mode="r", path=zarr_group)
+    for key in zarr_keys:
+        if key in g:
+            arr = np.atleast_1d(np.asarray(g[key][:], dtype=float)).ravel()
+            if clip_trailing_zeros:
+                arr = _clip_trailing_zeros(arr, tol=zero_tol)
+            _validate_temperature(arr, key, f"{zp.name}/{zarr_group}")
+            return arr
 
     raise KeyError(
-        f"No temperature array found in {json_path.name}. "
-        "Looked for keys: ProbeTemperature / InterposerTemperature."
+        f"No recognized temperature array in {zp}/{zarr_group}. "
+        f"Looked for: {', '.join(zarr_keys)}."
     )
 
 
+def _clip_trailing_zeros(arr: np.ndarray, *, tol: float = 0.0) -> np.ndarray:
+    """
+    Remove only trailing zeros (or near-zeros within `tol`) from a 1-D array.
+    Keeps zeros in the middle.
+    """
+    if arr.size == 0:
+        return arr
+    if tol <= 0.0:
+        nz = np.flatnonzero(arr != 0.0)
+    else:
+        nz = np.flatnonzero(np.abs(arr) > tol)
+    if nz.size == 0:
+        # all zeros -> return empty slice of same dtype
+        return arr[:0]
+    return arr[: nz[-1] + 1]
+
+
+def _validate_temperature(arr: np.ndarray, key: str, where: str) -> None:
+    if arr.size == 0:
+        raise ValueError(
+            f"{key} exists in {where} but is empty after trimming trailing zeros "
+            "(array is all zeros or entirely padded)."
+        )
+    finite = np.isfinite(arr)
+    if not finite.all():
+        bad_idx = np.where(~finite)[0][:5].tolist()
+        n_bad = int((~finite).sum())
+        raise ValueError(
+            f"{key} exists in {where} but contains non‑finite values "
+            f"(e.g., indices {bad_idx}, total {n_bad})."
+        )
+
+
+def _infer_logs_zarr(sidecar_path: Path) -> Optional[Path]:
+    """
+    Heuristics to find the logs Zarr from a *_pwd.json sidecar path.
+    Tries common layouts:
+      - same folder: <stem>_ustd.zarr
+      - ../ustd/<stem>_ustd.zarr
+      - swap 'fusi' -> 'ustd' in the path
+      - a 'sourcedata' mirror under /.../forest_human/sourcedata/<sub>/<ses>/ustd/
+    """
+    p = Path(sidecar_path)
+    name = p.name
+    stem = name[:-len("_pwd.json")] if name.endswith("_pwd.json") else p.stem
+    candidates = []
+
+    # same folder
+    candidates.append(p.with_name(f"{stem}_ustd.zarr"))
+    # ../ustd
+    candidates.append(p.parent.parent / "ustd" / f"{stem}_ustd.zarr")
+
+    # swap 'fusi' -> 'ustd'
+    if "fusi" in p.parts:
+        parts = [("ustd" if s == "fusi" else s) for s in p.parts]
+        candidates.append(Path(*parts[:-1]) / f"{stem}_ustd.zarr")
+
+    # sources mirrored under 'sourcedata'
+    if "sourcedata" not in p.parts and "forest_human" in p.parts:
+        try:
+            idx = p.parts.index("forest_human")
+            sourcedata_base = (
+                Path(*p.parts[:idx + 1])
+                / "sourcedata"
+                / Path(*p.parts[idx + 1: idx + 3])  # <sub>/<ses>
+                / "ustd"
+            )
+            candidates.append(sourcedata_base / f"{stem}_ustd.zarr")
+        except ValueError:
+            pass
+
+    for c in candidates:
+        if c.exists():
+            return c
+    return None
+
+
+
+
+
+
 def detect_motion_via_global(
-        sig: np.ndarray, t_r: float, k: float = 3.0, y_lim: Optional[Tuple[float, float]] = None
+        sig: np.ndarray, t_r: float, k: float = 3.0
 ) -> tuple[np.ndarray, np.ndarray, plt.Figure]:
     sig_detr = clean(sig.reshape(-1, 1), detrend=True, t_r=t_r).ravel()
     med = np.median(sig_detr)
     mad = np.median(np.abs(sig_detr - med))
     thr = med + k * mad
     bad = np.where(sig_detr > thr)[0]
-    good = np.array([i for i in range(sig.size) if i not in bad], dtype=np.int64)
+    good = np.array([i for i in range(sig.size) if i not in bad], dtype=int)
 
     fig, ax = plt.subplots()
     ax.plot(sig)
@@ -94,8 +265,6 @@ def detect_motion_via_global(
     ax.set_title("Global signal with motion outliers")
     ax.set_xlabel("Frame #")
     ax.set_ylabel("Average Intensity")
-    if y_lim:
-        ax.set_ylim(y_lim[0], y_lim[1])
     return bad, good, fig
 
 
@@ -309,15 +478,7 @@ def run_tcompcor(realigned_path: Path, mask_path: Path, out_dir: Path, *,
 # ------------------------------------------------------------------------
 # 5  Temporal smoothing
 # ------------------------------------------------------------------------
-def boxcar_smooth(data: np.ndarray, window: int) -> np.ndarray:
-    if window < 3 or window % 2 == 0:
-        return data
-    half = window // 2
-    sm = np.empty_like(data)
-    for t in range(data.shape[3]):
-        lo, hi = max(0, t-half), min(data.shape[3], t+half+1)
-        sm[..., t] = np.nanmean(data[..., lo:hi], axis=3)
-    return sm
+
 
 
 from scipy.signal import savgol_filter
@@ -434,30 +595,70 @@ def plot_dvars(dvars_stdz: np.ndarray, out_png: Path) -> None:
 # 8  Doppler movie
 # ------------------------------------------------------------------------
 def save_doppler_movie(reg_data: np.ndarray, out_mp4: Path,
-                       vmax_plus: float = 7.0, step: int = 2
-) -> HTML:
+                       vmax_plus: float = 7.0, step: int = 2) -> HTML:
+    import matplotlib as mpl
+    from matplotlib.animation import FuncAnimation
+    from pathlib import Path
+
+    # ---- prep data & first frame ------------------------------------
     data_db = 10*np.log10(reg_data)
     nnz = reg_data > np.finfo(reg_data.dtype).eps
     vmax = np.percentile(data_db[nnz], 90)
     vmin = np.percentile(data_db[nnz], 10)
+
     fig, ax = plt.subplots()
     slice_ = data_db[:, data_db.shape[1]//2, :, 0].T
     cax = ax.imshow(slice_, cmap="inferno", vmax=vmax+vmax_plus,
-                    vmin=vmin, extent=[0,50,92,25])
+                    vmin=vmin, extent=[0, 50, 92, 25])
     ax.set_xlabel("Y (mm)"); ax.set_ylabel("X (mm)")
-    ax.set_title("0"); plt.colorbar(cax, ax=ax, label="Intensity (dB)")
+    ax.set_title("0")
+    plt.colorbar(cax, ax=ax, label="Intensity (dB)")
 
+    # ---- animation func ----------------------------------------------
     def update(frame):
         cax.set_data(data_db[:, data_db.shape[1]//2, :, frame].T)
         ax.set_title(f"Frame # {frame}")
         return (cax,)
 
-    ani = FuncAnimation(fig, update,
-                        frames=range(0, reg_data.shape[3], step),
-                        interval=100, blit=True)
-    ani.save(out_mp4, writer="ffmpeg")
-    plt.close()
+    ani = FuncAnimation(
+        fig, update,
+        frames=range(0, reg_data.shape[3], step),
+        interval=100,  # ms; Matplotlib infers fps = 1000/interval
+        blit=True
+    )
+
+    # ---- choose writer by extension ----------------------------------
+    out_path = Path(out_mp4)
+    ext = out_path.suffix.lower()
+
+    if ext == ".mp4":
+        # Try to provide an ffmpeg binary (no system install needed)
+        try:
+            import imageio_ffmpeg
+            mpl.rcParams['animation.ffmpeg_path'] = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            pass  # if not installed, we'll rely on system ffmpeg or fail clearly
+
+        # Use the string writer so Matplotlib infers fps from interval
+        from matplotlib.animation import FFMpegWriter
+        if not FFMpegWriter.isAvailable():
+            raise RuntimeError(
+                "FFmpeg writer unavailable. "
+                "Install a binary via `pip install imageio-ffmpeg` "
+                "or put `ffmpeg` on your system PATH."
+            )
+        ani.save(str(out_path), writer="ffmpeg")
+
+    elif ext in {".gif", ".apng"}:
+        # Pillow can handle GIF/APNG; interval is respected
+        ani.save(str(out_path), writer="pillow")
+
+    else:
+        raise ValueError(f"Unsupported video/image extension: {ext}")
+
+    plt.close(fig)
     return HTML(ani.to_jshtml())
+
 
 
 # ------------------------------------------------------------------------
