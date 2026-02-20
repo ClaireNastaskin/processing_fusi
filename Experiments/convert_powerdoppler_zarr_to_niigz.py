@@ -35,6 +35,6 @@ def convert_zarr_to_niigz(zarr_path, output_path=None):
 
 if __name__ == "__main__":
     # --- Set your path here ---
-    zarr_path = "/Users/clairenastaskin/data/Post_acquisition_parameter_sweep/sub-Forest001/ses-20250708/task-movements_run-004/power_doppler_volumes_200bmodes_1.6s/svd_50/power_doppler.zarr"
+    zarr_path = "/Users/clairenastaskin/data/sub-Forest002/ses-20260215/task-audio_run-001_beamformed_as_plane_waves/svd_50/power_doppler.zarr"
 
     convert_zarr_to_niigz(zarr_path)
