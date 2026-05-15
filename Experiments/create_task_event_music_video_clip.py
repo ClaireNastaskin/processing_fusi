@@ -6,12 +6,12 @@ from pathlib import Path
 import numpy as np
 import os
 
-base_path = Path('/Users/clairenastaskin/data/sub-Forest001/2025-07-08/sub-Forest001_ses-20250708_task-movements_run-004')
+base_path = Path('/Users/clairenastaskin/data/sub-Forest001/2026-03-06/audio_069ab937-43e6-7d7b-8000-9af7a85f0afd')
 
-start_clip_tsv_path = base_path / 'sub-Forest001_ses-20250708_task-movements_run-004_events.tsv'
+start_clip_tsv_path = base_path / 'task_events.tsv'
 start_clip_tsv_file = pd.read_csv(start_clip_tsv_path, sep='\t')
 
-task_tsv_path = base_path / 'Clip5_raw_events.tsv'
+task_tsv_path = base_path / 'raw_events_bbc5.tsv'
 task_tsv_file = pd.read_csv(task_tsv_path, sep='\t')
 
 # Fix DataFrame initialization for mypy/pandas

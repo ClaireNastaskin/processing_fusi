@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls /Users/clairenastaskin/data/ARIA/subs/sub-NHS006/0319_task-verbalfluency_run-001/ 2>&1 | head -50)",
+      "Read(//Users/clairenastaskin/data/ARIA/subs/sub-NHS006/0319_task-verbalfluency_run-001/**)",
+      "Bash(python3 -c ' *)",
+      "Bash(jupyter nbconvert *)",
+      "Bash(uv venv *)",
+      "Bash(uv sync *)",
+      "Bash(env)",
+      "Bash(find ~/Documents ~/Projects ~/code ~/src ~/repos -maxdepth 4 -type d -name \"mangrove\" 2>/dev/null | head -10; ls /Users/clairenastaskin/.cache/uv/archive-v0/fcO_m5mxuo6R28mk0Pkc2/ 2>/dev/null | head)",
+      "Read(//Users/clairenastaskin/Documents/**)",
+      "Read(//Users/clairenastaskin/.cache/uv/archive-v0/fcO_m5mxuo6R28mk0Pkc2/**)",
+      "Bash(zip -rq /tmp/mangrove-5.6.1-py3-none-any.whl chestnut mangrove mangrove-5.6.1.dist-info)",
+      "Read(//tmp/**)",
+      "Bash(uv pip *)",
+      "Bash(.venv/bin/python -c \"import mangrove; print\\('mangrove', mangrove.__version__ if hasattr\\(mangrove, '__version__'\\) else 'OK'\\); import chestnut; print\\('chestnut OK'\\); import sys; print\\('python', sys.version.split\\(\\)[0]\\)\")",
+      "Bash(.venv/bin/python -c ' *)",
+      "Bash(.venv/bin/python -c \"import nipype\")",
+      "Bash(.venv/bin/pip list *)",
+      "Bash(.venv/bin/python -c \"import fusiproc_utils2\")",
+      "Bash(/Users/clairenastaskin/Documents/Anise/.venv/bin/python -c \"import fusiproc_utils2 as fu; print\\('OK'\\)\")",
+      "Bash(find /Users/clairenastaskin/Documents/Anise /Users/clairenastaskin/data -name \"*events*.tsv\" 2>/dev/null | head -20)",
+      "Read(//Users/clairenastaskin/data/**)"
+    ],
+    "additionalDirectories": [
+      "/Users/clairenastaskin/data/ARIA/subs/sub-NHS006/0319_task-verbalfluency_run-001",
+      "/Users/clairenastaskin/data/ARIA/subs/sub-NHS004/0320_task-verbalfluency_run-001"
+    ]
+  }
+}

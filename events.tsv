@@ -1,63 +1,13 @@
 timestamp_perf [s]	task	start	stop
-30	Right wrist	True	False
-43	Right wrist	False	True
-61	Left foot	True	False
-81	Left foot	False	True
-101	Right fingers	True	False
-117	Right fingers	False	True
-143	Right foot	True	False
-157	Right foot	False	True
-179	Right wrist	True	False
-197	Right wrist	False	True
-217	Left fingers	True	False
-241	Left fingers	False	True
-290	Right foot	True	False
-308	Right foot	False	True
-325	Right fingers	True	False
-341	Right fingers	False	True
-358	Left foot	True	False
-374	Left foot	False	True
-396	Left fingers	True	False
-419	Left fingers	False	True
-504	Right foot	True	False
-524	Right foot	False	True
-545	Right wrist	True	False
-563	Right wrist	False	True
-609	Right wrist	True	False
-627	Right wrist	False	True
-651	Left foot	True	False
-667	Left foot	False	True
-691	Right fingers	True	False
-711	Right fingers	False	True
-732	Right foot	True	False
-754	Right foot	False	True
-776	Left fingers	True	False
-794	Left fingers	False	True
-818	Right wrist	True	False
-836	Right wrist	False	True
-863	Left fingers	True	False
-882	Left fingers	False	True
-905	Right fingers	True	False
-921	Right fingers	False	True
-937	Left foot	True	False
-952	Left foot	False	True
-976	Right foot	True	False
-998	Right foot	False	True
-1023	Left fingers	True	False
-1043	Left fingers	False	True
-1063	Right fingers	True	False
-1078	Right fingers	False	True
-1113	Right foot	True	False
-1135	Right foot	False	True
-1153	Right wrist	True	False
-1171	Right wrist	False	True
-1189	Left foot	True	False
-1203	Left foot	False	True
-1223	Left fingers	True	False
-1243	Left fingers	False	True
-1267	Right fingers	True	False
-1287	Right fingers	False	True
-1304	Left foot	True	False
-1326	Left foot	False	True
-1342	Right wrist	True	False
-1359	Right wrist	False	True
+39	Speech	True	False
+57	Speech	False	True
+75	Audio only	True	False
+87	Audio only	False	True
+102	Speech	True	False
+118	Speech	False	True
+132	Speech	True	False
+145	Speech	False	True
+156	Speech	True	False
+168	Speech	False	True
+182	Audio only	True	False
+196	Audio only	False	True

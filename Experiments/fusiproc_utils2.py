@@ -463,8 +463,8 @@ def save_doppler_movie(reg_data: np.ndarray, out_mp4: Path,
 # ------------------------------------------------------------------------
 # 9  GLM helpers
 # ------------------------------------------------------------------------
-def build_design_matrix(glm, events, confounds, sample_mask):
-    fitted = glm.fit(glm.subject_data_, events=events,
+def build_design_matrix(glm, events, confounds, sample_mask, data):
+    fitted = glm.fit(data, events=events,
                      confounds=confounds,
                      sample_masks=[sample_mask])
     return fitted, fitted.design_matrices_[0]
